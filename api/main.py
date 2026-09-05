@@ -1,21 +1,29 @@
 """
 SatQuery AI - FastAPI REST Gateway
 Owner: Achintya (Backend Lead) & Vinayak (Secondary Backend)
+Integrated with Peter's Agentic Task Orchestrator & Misha's Geospatial Pipeline.
 """
+
 import uuid
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Optional
 import shutil
 from pathlib import Path
+from typing import List, Optional, Dict, Any
 
-from core.config import UPLOADS_DIR
-from core.schemas import QueryResponse
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+
+from core.config import UPLOADS_DIR, OUTPUTS_DIR
+from core.schemas import QueryResponse, TaskCategory
+from services.orchestrator import AgenticTaskRouter
 from services.report_generator import generate_report
 
-# Temporary storage for execution traces
-execution_traces = {}
+# In-memory stores for traces and full responses
+execution_traces: Dict[str, Dict[str, Any]] = {}
+stored_responses: Dict[str, QueryResponse] = {}
+
+# Instantiate central Agentic Task Orchestrator
+orchestrator = AgenticTaskRouter()
 
 app = FastAPI(
     title="SatQuery AI REST Gateway",
@@ -37,7 +45,8 @@ async def health_check():
     return {
         "status": "HEALTHY",
         "service": "SatQuery AI Gateway",
-        "isro_problem_id": "SIH26167"
+        "isro_problem_id": "SIH26167",
+        "orchestrator_status": "ACTIVE"
     }
 
 
@@ -58,116 +67,118 @@ async def upload_rasters(files: List[UploadFile] = File(...)):
         })
     return {"uploaded_files": saved_files, "status": "SUCCESS"}
 
+
 @app.post("/api/query", response_model=QueryResponse)
 async def process_query(
     query: str = Form(...),
-    image: UploadFile = File(...)
+    image: Optional[UploadFile] = File(None),
+    files: Optional[List[UploadFile]] = File(None),
+    confidence_threshold: Optional[float] = Form(None),
+    change_threshold: Optional[float] = Form(None),
+    speckle_filter_kernel: Optional[int] = Form(None),
+    max_tokens: Optional[int] = Form(None)
 ):
     """
-    Receives a satellite image and a natural-language query.
-    Currently returns a mock response for backend testing.
+    Receives remote sensing imagery (single, bi-temporal pair, or cross-modal optical+SAR pair)
+    and executes the central Agentic Task Orchestrator.
+    Returns complete QueryResponse with verifiable AuditableExecutionTrace.
     """
+    uploaded_files: List[UploadFile] = []
+    if image is not None:
+        uploaded_files.append(image)
+    if files is not None:
+        uploaded_files.extend(files)
 
-    # Save the uploaded image
-    target_path = UPLOADS_DIR / image.filename
+    if not uploaded_files:
+        raise HTTPException(
+            status_code=400,
+            detail="No image uploaded. Provide either 'image' or 'files'."
+        )
 
-    with open(target_path, "wb") as buffer:
-        shutil.copyfileobj(image.file, buffer)
+    saved_paths: List[Path] = []
+    for f in uploaded_files:
+        target_path = UPLOADS_DIR / f.filename
+        with open(target_path, "wb") as buffer:
+            shutil.copyfileobj(f.file, buffer)
+        saved_paths.append(target_path)
 
-    # Generate a unique trace ID
-    trace_id = f"satquery-exec-{uuid.uuid4().hex[:8]}"
+    # Assemble raw parameter dictionary
+    raw_params: Dict[str, Any] = {}
+    if confidence_threshold is not None:
+        raw_params["confidence_threshold"] = confidence_threshold
+    if change_threshold is not None:
+        raw_params["change_threshold"] = change_threshold
+    if speckle_filter_kernel is not None:
+        raw_params["speckle_filter_kernel"] = speckle_filter_kernel
+    if max_tokens is not None:
+        raw_params["max_tokens"] = max_tokens
 
-    # Create the execution trace
-    trace = {
-    "trace_id": trace_id,
-    "timestamp": "2026-09-04T21:00:00Z",
-    "user_query": query,
-    "input_audit": {
-        "filename": image.filename,
-        "content_type": image.content_type
-    },
-    "orchestration": {
-        "selected_task": "SINGLE_IMAGE_VQA",
-        "pipeline_steps": [
-            {
-                "step_number": 1,
-                "tool_name": "image_loader",
-                "parameters": {
-                    "filename": image.filename
-                },
-                "status": "SUCCESS",
-                "duration_ms": 100.0
-            }
-        ]
-    },
-    "results": {}
-}
+    # Execute Peter's Agentic Task Router
+    try:
+        response = orchestrator.process_query(
+            query=query,
+            file_paths=saved_paths,
+            raw_params=raw_params
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Agentic orchestration failure: {str(e)}"
+        )
 
-    # Store the trace in memory
-    execution_traces[trace_id] = trace
+    # Persist trace and response
+    execution_traces[response.trace_id] = response.execution_trace.model_dump()
+    stored_responses[response.trace_id] = response
 
-    # Return the query response
-    return QueryResponse(
-        trace_id=trace_id,
-        query=query,
-        task_category="SINGLE_IMAGE_VQA",
-        text_response="Mock response: image received successfully.",
-        confidence_score=0.90,
-        execution_trace=trace
-    )
+    return response
+
 
 @app.get("/api/trace/{trace_id}")
 async def get_execution_trace(trace_id: str):
     """
     Fetches the stored execution trace for a given trace ID.
     """
-
     trace = execution_traces.get(trace_id)
-
     if trace is None:
         raise HTTPException(
             status_code=404,
-            detail="Trace not found"
+            detail=f"Execution trace '{trace_id}' not found."
         )
-
     return trace
+
 
 @app.post("/api/export-report/{trace_id}")
 async def export_report(trace_id: str):
     """
     Generates and returns an Intelligence Dossier PDF
-    for a previously executed query.
+    for a previously executed query using the stored QueryResponse.
     """
+    query_response = stored_responses.get(trace_id)
 
-    # Find the stored execution trace
-    trace = execution_traces.get(trace_id)
+    if query_response is None:
+        trace = execution_traces.get(trace_id)
+        if trace is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Execution trace '{trace_id}' not found."
+            )
 
-    if trace is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Trace not found"
+        # Reconstruct QueryResponse from trace
+        query_response = QueryResponse(
+            trace_id=trace_id,
+            query=trace["user_query"],
+            task_category=TaskCategory(trace["orchestration"]["selected_task"]),
+            text_response=trace["results"].get("textual_summary", "Analysis completed."),
+            confidence_score=trace["results"].get("overall_confidence", 0.90),
+            execution_trace=trace
         )
 
-    # Reconstruct the QueryResponse
-    query_response = QueryResponse(
-        trace_id=trace_id,
-        query=trace["user_query"],
-        task_category=trace["orchestration"]["selected_task"],
-        text_response="Mock response: image received successfully.",
-        confidence_score=0.90,
-        execution_trace=trace
-    )
+    # Save PDF to outputs directory
+    report_path = str(OUTPUTS_DIR / f"{trace_id}_report.pdf")
 
-    # Create the output PDF path
-    report_path = str(UPLOADS_DIR / f"{trace_id}_report.pdf")
+    # Generate the PDF dossier
+    generate_report(query_response, report_path)
 
-    # Generate the PDF
-    generate_report(
-        query_response,
-        report_path
-    )
-
-    # Return the generated PDF
     return FileResponse(
         path=report_path,
         media_type="application/pdf",
