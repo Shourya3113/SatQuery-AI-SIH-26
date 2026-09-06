@@ -101,7 +101,8 @@ class RSVQAEngine(BaseSpecialistTool):
 
         telemetry = {
             "status": "SUCCESS",
-            "model": "RS-VLM-Qwen2-VL-Adapter",
+            "model": "MOCK-RS-VQA",
+            "backend": "deterministic_mock",
             "device": "CPU/CUDA",
             "tokens": output["tokens_generated"]
         }

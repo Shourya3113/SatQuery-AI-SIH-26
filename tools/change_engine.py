@@ -148,7 +148,8 @@ class BiTemporalChangeEngine(BaseSpecialistTool):
 
         telemetry = {
             "status": "SUCCESS",
-            "model": "ChangeFormer-V2-CDVQA",
+            "model": "MOCK-CHANGEFORMER-V2",
+            "backend": "deterministic_pixel_difference",
             "changed_pixels": changed_pixels,
             "change_percentage": change_pct,
             "threshold_applied": diff_scaled_thresh

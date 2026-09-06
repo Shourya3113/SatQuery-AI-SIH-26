@@ -167,7 +167,8 @@ class OpticalSARFusionEngine(BaseSpecialistTool):
 
         telemetry = {
             "status": "SUCCESS",
-            "model": "Siamese-CrossAttention-Fusion",
+            "model": "MOCK-SIAMESE-FUSION",
+            "backend": "deterministic_optical_sar_fusion",
             "sar_filter_kernel": kernel_size,
             "layers_generated": len(vector_layers)
         }

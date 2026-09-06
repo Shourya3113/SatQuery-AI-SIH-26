@@ -158,7 +158,8 @@ class SpatialGroundingEngine(BaseSpecialistTool):
 
         telemetry = {
             "status": "SUCCESS",
-            "model": "Grounding-DINO + SAM-2",
+            "model": "MOCK-GROUNDING-SAM2",
+            "backend": "deterministic_raster_segmentation",
             "segmented_features": feature_count,
             "area_hectares": total_area
         }
