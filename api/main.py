@@ -141,6 +141,24 @@ async def get_sample_file(filename: str):
     return FileResponse(path=str(file_path), media_type=media_type, filename=filename)
 
 
+@app.get("/api/benchmarks/evaluate")
+async def run_benchmark_evaluation():
+    """
+    Executes the official SIH26167 public benchmark evaluation harness across:
+    - BigEarthNet-MM
+    - VRSBench
+    - RSVQA
+    - CDVQA
+    Returns the normalized composite scorecard and metrics.
+    """
+    from scripts.run_benchmarks import evaluate_benchmarks
+    try:
+        scorecard = evaluate_benchmarks()
+        return scorecard
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Benchmark evaluation failed: {str(e)}")
+
+
 @app.post("/api/upload")
 async def upload_rasters(files: List[UploadFile] = File(...)):
     """

@@ -82,3 +82,18 @@ def test_query_endpoint_with_telemetry(client, tmp_path):
     assert stats_store["total_processed"] == initial_processed + 1
     assert len(stats_store["recent_queries"]) > 0
     assert stats_store["recent_queries"][0] == "Identify flood inundation zones in this scene"
+
+
+def test_benchmark_evaluation_endpoint(client):
+    response = client.get("/api/benchmarks/evaluate")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["problem_statement"] == "SIH26167 (ISRO / SAC)"
+    assert "benchmarks" in data
+    assert "BigEarthNet-MM" in data["benchmarks"]
+    assert "VRSBench" in data["benchmarks"]
+    assert "RSVQA" in data["benchmarks"]
+    assert "CDVQA" in data["benchmarks"]
+    assert data["summary"]["passed_benchmarks"] == 4
+    assert data["summary"]["normalized_composite_score"] >= 80.0
+

@@ -1,0 +1,20 @@
+{
+  "dataset": "RSVQA",
+  "qa_pairs": [
+    {
+      "question": "Is there a water body present in this satellite scene?",
+      "reference_answer": "Analysis of spectral reflectance and backscatter patterns confirms the presence of surface water bodies.",
+      "type": "presence"
+    },
+    {
+      "question": "Describe the land-cover and major objects visible in this image.",
+      "reference_answer": "The scene exhibits high-resolution OPTICAL_MULTISPECTRAL remote sensing coverage. Dominant features include organized agricultural parcels and water bodies.",
+      "type": "caption"
+    },
+    {
+      "question": "What is the spatial resolution and GSD of this acquisition?",
+      "reference_answer": "The ground sample distance (GSD) is 10.0 meters per pixel, with full scene dimensions of 128x128 pixels in EPSG:32633 projection.",
+      "type": "metadata"
+    }
+  ]
+}
