@@ -16,11 +16,19 @@ export default function Layout() {
       <nav className="bg-surface border-b border-border sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded bg-primary flex items-center justify-center shadow-sm">
                 <Layers className="text-white w-5 h-5" />
               </div>
-              <span className="text-lg font-bold text-textMain tracking-tight">SatQuery AI</span>
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-bold text-textMain tracking-tight">SatQuery AI</span>
+                  <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded bg-blue-100 text-blue-800 tracking-wide">
+                    ISRO / SAC
+                  </span>
+                </div>
+                <span className="text-[10px] text-textMuted font-mono">SIH26167 • Multimodal Remote Sensing</span>
+              </div>
             </div>
             <div className="flex items-center space-x-1">
               {navItems.map((item) => {
