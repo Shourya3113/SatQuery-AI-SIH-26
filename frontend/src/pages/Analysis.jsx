@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import axios from 'axios';
-import { UploadCloud, FileImage, X, Loader2, Send, Database, Info, Code2, FileDown, CheckCircle2, Layers } from 'lucide-react';
+import { UploadCloud, FileImage, X, Loader2, Send, Database, Info, Code2, FileDown, CheckCircle2, Layers, Sparkles } from 'lucide-react';
 import { API_BASE } from '../config';
 
 export default function Analysis() {
@@ -8,11 +8,44 @@ export default function Analysis() {
   const [query, setQuery] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingPreset, setIsLoadingPreset] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   
   const fileInputRef = useRef(null);
+
+  const loadPreset = async (presetType) => {
+    setIsLoadingPreset(true);
+    setError(null);
+    try {
+      if (presetType === 'water') {
+        const res = await axios.get(`${API_BASE}/api/samples/optical.tif`, { responseType: 'blob' });
+        const file = new File([res.data], 'optical.tif', { type: 'image/tiff' });
+        setFiles([file]);
+        setQuery('Highlight and segment the water body in this image');
+      } else if (presetType === 'change') {
+        const res1 = await axios.get(`${API_BASE}/api/samples/bitemporal_t1.tif`, { responseType: 'blob' });
+        const res2 = await axios.get(`${API_BASE}/api/samples/bitemporal_t2.tif`, { responseType: 'blob' });
+        const file1 = new File([res1.data], 'bitemporal_t1.tif', { type: 'image/tiff' });
+        const file2 = new File([res2.data], 'bitemporal_t2.tif', { type: 'image/tiff' });
+        setFiles([file1, file2]);
+        setQuery('What changed between these two temporal acquisitions?');
+      } else if (presetType === 'fusion') {
+        const res1 = await axios.get(`${API_BASE}/api/samples/optical.tif`, { responseType: 'blob' });
+        const res2 = await axios.get(`${API_BASE}/api/samples/sar.tif`, { responseType: 'blob' });
+        const file1 = new File([res1.data], 'optical.tif', { type: 'image/tiff' });
+        const file2 = new File([res2.data], 'sar.tif', { type: 'image/tiff' });
+        setFiles([file1, file2]);
+        setQuery('Use optical and SAR together to detect built-up and water covered regions');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Failed to load sample dataset.');
+    } finally {
+      setIsLoadingPreset(false);
+    }
+  };
 
   const handleDownloadDossier = async (traceId) => {
     setIsDownloading(true);
@@ -78,6 +111,45 @@ export default function Analysis() {
         <h2 className="text-lg font-semibold flex items-center gap-2 text-textMain border-b border-border pb-4">
           <Database className="w-5 h-5 text-primary" /> Input Configuration
         </h2>
+
+        {/* 1-Click Instant Demo Presets */}
+        <div className="bg-slate-100 p-3.5 rounded-xl border border-slate-200">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Instant Demo Datasets
+            </span>
+            {isLoadingPreset && <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />}
+          </div>
+          <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => loadPreset('water')}
+              disabled={isLoadingPreset}
+              className="text-xs font-medium px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 hover:border-primary hover:text-primary transition-colors text-slate-700 shadow-2xs"
+            >
+              🌊 Water Body (Optical)
+            </button>
+            <button
+              type="button"
+              onClick={() => loadPreset('change')}
+              disabled={isLoadingPreset}
+              className="text-xs font-medium px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 hover:border-primary hover:text-primary transition-colors text-slate-700 shadow-2xs"
+            >
+              🏗️ Bi-Temporal (T1 vs T2)
+            </button>
+            <button
+              type="button"
+              onClick={() => loadPreset('fusion')}
+              disabled={isLoadingPreset}
+              className="text-xs font-medium px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 hover:border-primary hover:text-primary transition-colors text-slate-700 shadow-2xs"
+            >
+              🛰️ Optical + SAR Fusion
+            </button>
+          </div>
+          <p className="text-[11px] text-slate-500 mt-2">
+            Click any button to auto-load sample rasters & query, or drag from <code className="bg-white px-1 py-0.5 rounded border text-slate-700">data/samples/</code>.
+          </p>
+        </div>
 
         <div
           className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center text-center transition-all cursor-pointer bg-slate-50 ${

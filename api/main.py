@@ -103,6 +103,44 @@ async def update_settings(settings: SettingsUpdate):
     return {"message": "Settings updated successfully"}
 
 
+@app.get("/api/samples")
+async def list_sample_imagery():
+    """Returns catalog of pre-packaged synthetic satellite imagery for instant demos."""
+    return [
+        {
+            "id": "water_grounding",
+            "title": "Sentinel-2 Optical (Water & Agriculture)",
+            "description": "4-band multispectral scene (10m GSD) over water bodies and farmland.",
+            "suggested_query": "Highlight and segment the water body in this image",
+            "files": ["optical.tif"]
+        },
+        {
+            "id": "bitemporal_change",
+            "title": "Bi-Temporal Pair (Monsoon Flood Inundation)",
+            "description": "Co-registered T1 baseline vs T2 post-flood acquisition.",
+            "suggested_query": "What changed between these two temporal acquisitions?",
+            "files": ["bitemporal_t1.tif", "bitemporal_t2.tif"]
+        },
+        {
+            "id": "optical_sar_fusion",
+            "title": "Optical RGB + SAR C-Band Microwave Pair",
+            "description": "Cross-modal pair combining optical reflectance with cloud-penetrating SAR backscatter.",
+            "suggested_query": "Use optical and SAR together to detect built-up and water covered regions",
+            "files": ["optical.tif", "sar.tif"]
+        }
+    ]
+
+
+@app.get("/api/samples/{filename}")
+async def get_sample_file(filename: str):
+    """Serves sample satellite imagery files directly to the client."""
+    file_path = Path("data/samples") / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Sample file not found.")
+    media_type = "image/tiff" if filename.endswith(".tif") else "image/png"
+    return FileResponse(path=str(file_path), media_type=media_type, filename=filename)
+
+
 @app.post("/api/upload")
 async def upload_rasters(files: List[UploadFile] = File(...)):
     """
