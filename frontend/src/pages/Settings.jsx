@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { KeyRound, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
+import { API_BASE } from '../config';
 
 export default function Settings() {
   const [apiKey, setApiKey] = useState('');
@@ -19,7 +20,7 @@ export default function Settings() {
 
   const fetchSettings = async () => {
     try {
-      const { data } = await axios.get('http://localhost:8000/api/settings');
+      const { data } = await axios.get(`${API_BASE}/api/settings`);
       setCurrentMaskedKey(data.google_api_key_masked);
       setHasKey(data.has_key);
     } catch (err) {
@@ -39,7 +40,7 @@ export default function Settings() {
     setMessage(null);
     
     try {
-      const { data } = await axios.post('http://localhost:8000/api/settings', {
+      const { data } = await axios.post(`${API_BASE}/api/settings`, {
         google_api_key: apiKey
       });
       setMessage(data.message);

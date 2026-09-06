@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ArrowRight, Image as ImageIcon, CheckCircle, Clock, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { API_BASE } from '../config';
 
 export default function Dashboard() {
   const [statsData, setStatsData] = useState(null);
@@ -13,7 +14,7 @@ export default function Dashboard() {
 
   const fetchStats = async () => {
     try {
-      const { data } = await axios.get('http://localhost:8000/api/stats');
+      const { data } = await axios.get(`${API_BASE}/api/stats`);
       setStatsData(data);
     } catch (err) {
       console.error('Failed to fetch stats', err);

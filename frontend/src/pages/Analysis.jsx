@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import axios from 'axios';
 import { UploadCloud, FileImage, X, Loader2, Send, Database, Info, Code2, FileDown, CheckCircle2, Layers } from 'lucide-react';
+import { API_BASE } from '../config';
 
 export default function Analysis() {
   const [files, setFiles] = useState([]);
@@ -16,7 +17,7 @@ export default function Analysis() {
   const handleDownloadDossier = async (traceId) => {
     setIsDownloading(true);
     try {
-      const response = await axios.post(`http://localhost:8000/api/export-report/${traceId}`, null, {
+      const response = await axios.post(`${API_BASE}/api/export-report/${traceId}`, null, {
         responseType: 'blob'
       });
       const blob = new Blob([response.data], { type: 'application/pdf' });
@@ -59,7 +60,7 @@ export default function Analysis() {
     files.forEach((file) => formData.append('files', file));
 
     try {
-      const { data } = await axios.post('http://localhost:8000/api/query', formData, {
+      const { data } = await axios.post(`${API_BASE}/api/query`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setResult(data);
