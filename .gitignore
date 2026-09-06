@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+*.so
+venv/
+.venv/
+env/
+
+# Environment Variables - NEVER commit this
+.env
+
+# VS Code
+.vscode/
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Rasterio / Geospatial temp files
+*.tif
+*.tiff
+*.geotiff
