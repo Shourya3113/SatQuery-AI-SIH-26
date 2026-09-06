@@ -62,6 +62,10 @@ class AuditableExecutionTrace(BaseModel):
     input_audit: Dict[str, Any]
     orchestration: Dict[str, Any]
     results: Dict[str, Any]
+    # Telemetry and frontend compatibility fields
+    selected_tool: Optional[str] = None
+    reasoning: Optional[str] = None
+    inputs: List[str] = Field(default_factory=list)
 
 
 class QueryResponse(BaseModel):
@@ -72,3 +76,4 @@ class QueryResponse(BaseModel):
     vector_layers: List[VectorFeature] = Field(default_factory=list)
     confidence_score: float
     execution_trace: AuditableExecutionTrace
+    validation: Optional[Dict[str, Any]] = None

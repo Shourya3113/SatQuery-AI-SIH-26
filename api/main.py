@@ -4,6 +4,8 @@ Owner: Achintya (Backend Lead) & Vinayak (Secondary Backend)
 Integrated with Peter's Agentic Task Orchestrator & Misha's Geospatial Pipeline.
 """
 
+import os
+import time
 import uuid
 import shutil
 from pathlib import Path
@@ -12,15 +14,28 @@ from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from dotenv import load_dotenv, set_key
 
 from core.config import UPLOADS_DIR, OUTPUTS_DIR
 from core.schemas import QueryResponse, TaskCategory
 from services.orchestrator import AgenticTaskRouter
 from services.report_generator import generate_report
 
-# In-memory stores for traces and full responses
+# In-memory stores for traces, full responses, and operational stats
 execution_traces: Dict[str, Dict[str, Any]] = {}
 stored_responses: Dict[str, QueryResponse] = {}
+stats_store: Dict[str, Any] = {
+    "total_processed": 0,
+    "success_count": 0,
+    "total_time_ms": 0.0,
+    "recent_queries": []
+}
+
+
+class SettingsUpdate(BaseModel):
+    google_api_key: str
+
 
 # Instantiate central Agentic Task Orchestrator
 orchestrator = AgenticTaskRouter()
@@ -48,6 +63,44 @@ async def health_check():
         "isro_problem_id": "SIH26167",
         "orchestrator_status": "ACTIVE"
     }
+
+
+@app.get("/api/stats")
+async def get_stats():
+    total = stats_store["total_processed"]
+    success = stats_store["success_count"]
+    time_ms = stats_store["total_time_ms"]
+    success_rate = (success / total * 100.0) if total > 0 else 100.0
+    avg_time_s = (time_ms / total / 1000.0) if total > 0 else 0.0
+    return {
+        "total_processed": total,
+        "success_rate": f"{success_rate:.1f}%",
+        "avg_time": f"{avg_time_s:.1f}s",
+        "recent_queries": stats_store["recent_queries"]
+    }
+
+
+@app.get("/api/settings")
+async def get_settings():
+    load_dotenv(override=True)
+    key = os.environ.get("GOOGLE_API_KEY", "")
+    masked = f"{key[:4]}...{key[-4:]}" if len(key) > 8 else ""
+    return {
+        "google_api_key_masked": masked,
+        "has_key": bool(key)
+    }
+
+
+@app.post("/api/settings")
+async def update_settings(settings: SettingsUpdate):
+    dotenv_path = os.path.join(os.getcwd(), ".env")
+    try:
+        set_key(dotenv_path, "GOOGLE_API_KEY", settings.google_api_key)
+    except Exception:
+        with open(dotenv_path, "a") as f:
+            f.write(f"\nGOOGLE_API_KEY={settings.google_api_key}\n")
+    load_dotenv(override=True)
+    return {"message": "Settings updated successfully"}
 
 
 @app.post("/api/upload")
@@ -83,6 +136,7 @@ async def process_query(
     and executes the central Agentic Task Orchestrator.
     Returns complete QueryResponse with verifiable AuditableExecutionTrace.
     """
+    start_time = time.time()
     uploaded_files: List[UploadFile] = []
     if image is not None:
         uploaded_files.append(image)
@@ -121,10 +175,18 @@ async def process_query(
             raw_params=raw_params
         )
     except Exception as e:
+        stats_store["total_processed"] += 1
         raise HTTPException(
             status_code=500,
             detail=f"Agentic orchestration failure: {str(e)}"
         )
+
+    elapsed_ms = (time.time() - start_time) * 1000.0
+    stats_store["total_processed"] += 1
+    stats_store["success_count"] += 1
+    stats_store["total_time_ms"] += elapsed_ms
+    stats_store["recent_queries"].insert(0, query)
+    stats_store["recent_queries"] = stats_store["recent_queries"][:10]
 
     # Persist trace and response
     execution_traces[response.trace_id] = response.execution_trace.model_dump()

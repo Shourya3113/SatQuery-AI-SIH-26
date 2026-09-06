@@ -2,7 +2,8 @@
 **Owner:** Vinayak (Frontend & Web-GIS Lead)
 
 ## 🗺️ Overview
-The SatQuery AI frontend is an interactive Web-GIS operational console built with **React 18**, **MapLibre GL**, and **Tailwind CSS**.
+The SatQuery AI frontend is an interactive Web-GIS operational console built with **React 19**, **Vite**, and **Tailwind CSS**.
+The active, verified frontend codebase is located in [`frontend/`](../frontend/).
 
 ## 🚀 Key Features
 1. **Interactive Map Canvas (`src/components/map/MapCanvas.tsx`):**
