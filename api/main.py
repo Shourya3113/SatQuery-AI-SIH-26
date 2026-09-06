@@ -141,6 +141,139 @@ async def get_sample_file(filename: str):
     return FileResponse(path=str(file_path), media_type=media_type, filename=filename)
 
 
+@app.get("/api/samples/preview/{filename}")
+async def get_sample_preview_file(filename: str):
+    """Serves sample RGB preview images directly to the client."""
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Invalid path traversal.")
+    file_path = Path("data/samples") / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Preview file not found.")
+    return FileResponse(path=str(file_path), media_type="image/png")
+
+
+@app.get("/api/benchmarks/preview/{dataset}/{filename}")
+async def get_benchmark_preview_file(dataset: str, filename: str):
+    """Serves benchmark dataset preview images."""
+    if ".." in dataset or ".." in filename or "/" in dataset or "\\" in dataset:
+        raise HTTPException(status_code=400, detail="Invalid path traversal.")
+    file_path = Path("data/benchmarks") / dataset / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Preview file not found.")
+    media_type = "image/png" if filename.endswith(".png") else "image/tiff"
+    return FileResponse(path=str(file_path), media_type=media_type)
+
+
+@app.get("/api/benchmarks/gallery")
+async def get_benchmark_gallery():
+    """
+    Returns gallery metadata and preview URLs for all 4 SIH26167 benchmark datasets:
+    BigEarthNet-MM, VRSBench, RSVQA, and CDVQA.
+    """
+    return [
+        {
+            "id": "bigearthnet",
+            "title": "BigEarthNet-MM: Optical-SAR Multimodal Fusion",
+            "dataset": "BigEarthNet-MM",
+            "description": "Co-registered Sentinel-2 4-band optical (10m GSD) and Sentinel-1 C-band SAR microwave backscatter (VV polarisation).",
+            "spatial_crs": "EPSG:32633 (UTM Zone 33N)",
+            "spatial_resolution": "10.0 m/px",
+            "modalities": ["Sentinel-2 Optical (4-Band)", "Sentinel-1 SAR C-Band (VV)"],
+            "images": [
+                {
+                    "name": "Sentinel-2 Optical RGB Composite",
+                    "file": "s2_patch.tif",
+                    "preview_url": "/api/benchmarks/preview/bigearthnet/s2_patch_preview.png",
+                    "bands": "B02 (Blue), B03 (Green), B04 (Red), B08 (NIR)",
+                    "type": "Multispectral Optical"
+                },
+                {
+                    "name": "Sentinel-1 SAR Backscatter Intensity",
+                    "file": "s1_patch.tif",
+                    "preview_url": "/api/benchmarks/preview/bigearthnet/s1_patch_preview.png",
+                    "bands": "VV Polarisation (Microwave C-Band)",
+                    "type": "SAR Radar Backscatter"
+                }
+            ]
+        },
+        {
+            "id": "cdvqa",
+            "title": "CDVQA: Bi-Temporal Flood Inundation & Change Detection",
+            "dataset": "CDVQA",
+            "description": "Bi-temporal satellite observations capturing pre-flood baseline (T1) versus post-monsoon water body expansion (T2).",
+            "spatial_crs": "EPSG:32633 (UTM Zone 33N)",
+            "spatial_resolution": "10.0 m/px",
+            "modalities": ["Bi-Temporal Sentinel-2 Multispectral"],
+            "images": [
+                {
+                    "name": "T1 Pre-Flood Baseline",
+                    "file": "cdvqa_t1.tif",
+                    "preview_url": "/api/benchmarks/preview/cdvqa/cdvqa_t1_preview.png",
+                    "acquisition": "2023-01-10 Baseline",
+                    "type": "Pre-Event Optical"
+                },
+                {
+                    "name": "T2 Post-Flood Inundation",
+                    "file": "cdvqa_t2.tif",
+                    "preview_url": "/api/benchmarks/preview/cdvqa/cdvqa_t2_preview.png",
+                    "acquisition": "2023-08-20 Post-Event",
+                    "type": "Post-Event Optical"
+                },
+                {
+                    "name": "Ground Truth Inundation Mask",
+                    "file": "gt_change_mask.npy",
+                    "preview_url": "/api/benchmarks/preview/cdvqa/gt_change_mask_preview.png",
+                    "metrics": "15.2% detected flood inundation (Red highlight), F1-Score: 1.0000",
+                    "type": "Change Mask"
+                }
+            ]
+        },
+        {
+            "id": "vrsbench",
+            "title": "VRSBench: Visual Spatial Grounding & Delineation",
+            "dataset": "VRSBench",
+            "description": "High-resolution remote sensing scene with natural-language spatial grounding annotations and pixel segmentation mask.",
+            "spatial_crs": "EPSG:32633 (Projected Coordinates)",
+            "spatial_resolution": "0.5 m/px High-Resolution",
+            "modalities": ["Aerial / VHR Optical"],
+            "images": [
+                {
+                    "name": "High-Res Aerial Scene",
+                    "file": "vrsbench_scene_001.png",
+                    "preview_url": "/api/benchmarks/preview/vrsbench/vrsbench_scene_001.png",
+                    "prompt": "Segment and ground the target building complex",
+                    "type": "VHR Optical"
+                },
+                {
+                    "name": "Ground Truth Target Mask",
+                    "file": "gt_mask_001.npy",
+                    "preview_url": "/api/benchmarks/preview/vrsbench/gt_mask_001_preview.png",
+                    "metrics": "mIoU: 1.0000 (Target baseline: >= 0.65)",
+                    "type": "Delineation Mask"
+                }
+            ]
+        },
+        {
+            "id": "rsvqa",
+            "title": "RSVQA: Remote Sensing Visual Question Answering",
+            "dataset": "RSVQA",
+            "description": "Multispectral satellite observation evaluated across semantic presence, counting, and scene description questions.",
+            "spatial_crs": "EPSG:32633 (UTM Zone 33N)",
+            "spatial_resolution": "10.0 m/px",
+            "modalities": ["Sentinel-2 Optical Multispectral"],
+            "images": [
+                {
+                    "name": "RSVQA Multispectral Optical Scene",
+                    "file": "rsvqa_optical.tif",
+                    "preview_url": "/api/benchmarks/preview/rsvqa/rsvqa_optical_preview.png",
+                    "eval": "3 QA pairs evaluated, Mean BLEU-2: 0.5713",
+                    "type": "Multispectral Tile"
+                }
+            ]
+        }
+    ]
+
+
 @app.get("/api/benchmarks/evaluate")
 async def run_benchmark_evaluation():
     """
@@ -157,6 +290,7 @@ async def run_benchmark_evaluation():
         return scorecard
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Benchmark evaluation failed: {str(e)}")
+
 
 
 @app.post("/api/upload")

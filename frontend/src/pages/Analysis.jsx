@@ -169,18 +169,47 @@ export default function Analysis() {
         </div>
 
         {files.length > 0 && (
-          <div className="space-y-2">
-            {files.map((file, i) => (
-              <div key={i} className="flex items-center justify-between bg-white p-3 rounded-lg border border-border shadow-sm group/item">
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <FileImage className="w-4 h-4 text-primary shrink-0" />
-                  <span className="truncate text-sm text-textMain font-medium">{file.name}</span>
-                </div>
-                <button onClick={() => removeFile(i)} className="text-slate-400 hover:text-red-500 transition-colors">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
+          <div className="space-y-3">
+            <span className="text-xs font-semibold text-textMuted uppercase tracking-wider block">
+              Loaded Satellite Rasters ({files.length})
+            </span>
+            <div className="space-y-2">
+              {files.map((file, i) => {
+                const previewUrl = {
+                  'optical.tif': `${API_BASE}/api/samples/preview/optical_preview.png`,
+                  'sar.tif': `${API_BASE}/api/samples/preview/sar_preview.png`,
+                  'bitemporal_t1.tif': `${API_BASE}/api/samples/preview/bitemporal_t1_preview.png`,
+                  'bitemporal_t2.tif': `${API_BASE}/api/samples/preview/bitemporal_t2_preview.png`,
+                }[file.name];
+
+                return (
+                  <div key={i} className="flex items-center justify-between bg-white p-3 rounded-lg border border-border shadow-sm group/item">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      {previewUrl ? (
+                        <img 
+                          src={previewUrl} 
+                          alt={file.name} 
+                          className="w-10 h-10 object-cover rounded border border-slate-200 bg-slate-900 shrink-0" 
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+                          <FileImage className="w-5 h-5 text-primary" />
+                        </div>
+                      )}
+                      <div className="overflow-hidden">
+                        <span className="truncate text-sm text-textMain font-medium block">{file.name}</span>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          {file.name.includes('sar') ? 'Sentinel-1 C-Band SAR' : 'Sentinel-2 Multispectral 10m'}
+                        </span>
+                      </div>
+                    </div>
+                    <button onClick={() => removeFile(i)} className="text-slate-400 hover:text-red-500 transition-colors p-1">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
