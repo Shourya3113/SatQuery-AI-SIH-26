@@ -31,31 +31,31 @@ export default function Globe3D() {
     atmosphere: true
   });
 
-  // Quick-Fly Locations
+  // Quick-Fly Locations (Configured with target center and camera ranges for dead-center alignment)
   const PRESETS = {
     india: {
       name: 'India Overview',
       lon: 78.9629,
-      lat: 20.5937,
-      height: 6500000,
+      lat: 21.5,
+      range: 4800000,
       heading: 0,
-      pitch: -85,
+      pitch: -89.9,
       description: 'Indian Subcontinent Earth Observation Coverage (ISRO / SAC)'
     },
     isro: {
       name: 'ISRO SAC Ahmedabad',
       lon: 72.502,
       lat: 23.033,
-      height: 4500,
-      heading: 30,
-      pitch: -35,
+      range: 3500,
+      heading: 0,
+      pitch: -45,
       description: 'Space Applications Centre (SAC), ISRO — Problem Statement SIH26167 Lead Authority'
     },
     flood: {
       name: 'CDVQA Flood Inundation',
-      lon: 14.34,
-      lat: 35.12,
-      height: 7000,
+      lon: 14.345,
+      lat: 35.1225,
+      range: 5500,
       heading: 0,
       pitch: -45,
       description: 'Bi-Temporal Satellite Inundation Zone (15.2% detected water surface expansion)'
@@ -63,19 +63,19 @@ export default function Globe3D() {
     bigearthnet: {
       name: 'BigEarthNet-MM Optical+SAR',
       lon: 13.405,
-      lat: 52.52,
-      height: 8000,
-      heading: 10,
-      pitch: -40,
+      lat: 52.520,
+      range: 5000,
+      heading: 0,
+      pitch: -45,
       description: 'Co-registered Sentinel-2 (4-Band Optical) & Sentinel-1 (C-Band SAR) Joint Footprint'
     },
     vrsbench: {
       name: 'VRSBench Urban Grounding',
-      lon: 77.209,
-      lat: 28.614,
-      height: 3500,
-      heading: 45,
-      pitch: -30,
+      lon: 77.2075,
+      lat: 28.615,
+      range: 2500,
+      heading: 0,
+      pitch: -40,
       description: 'High-Resolution 0.5m Spatial Grounding Target Complex'
     }
   };
@@ -244,14 +244,12 @@ export default function Globe3D() {
           }
         });
       } else {
-        // Center initial camera directly over India
-        viewer.camera.setView({
-          destination: Cesium.Cartesian3.fromDegrees(78.9629, 20.5937, 7500000),
-          orientation: {
-            heading: 0.0,
-            pitch: Cesium.Math.toRadians(-88),
-            roll: 0.0
-          }
+        // Center initial camera directly over India in dead center
+        const targetCenter = Cesium.Cartesian3.fromDegrees(78.9629, 21.5, 0);
+        const bs = new Cesium.BoundingSphere(targetCenter, 1000);
+        viewer.camera.flyToBoundingSphere(bs, {
+          offset: new Cesium.HeadingPitchRange(0.0, Cesium.Math.toRadians(-89.9), 4800000),
+          duration: 0.0
         });
       }
 
@@ -333,13 +331,15 @@ export default function Globe3D() {
     if (!p || !viewerRef.current) return;
     setActivePreset(key);
 
-    viewerRef.current.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.height),
-      orientation: {
-        heading: Cesium.Math.toRadians(p.heading),
-        pitch: Cesium.Math.toRadians(p.pitch),
-        roll: 0.0
-      },
+    const targetCenter = Cesium.Cartesian3.fromDegrees(p.lon, p.lat, 0);
+    const boundingSphere = new Cesium.BoundingSphere(targetCenter, 100);
+
+    viewerRef.current.camera.flyToBoundingSphere(boundingSphere, {
+      offset: new Cesium.HeadingPitchRange(
+        Cesium.Math.toRadians(p.heading),
+        Cesium.Math.toRadians(p.pitch),
+        p.range
+      ),
       duration: 2.0,
       complete: () => {
         viewerRef.current?.scene?.requestRender();
