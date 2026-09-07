@@ -1,9 +1,11 @@
 import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { UploadCloud, FileImage, X, Loader2, Send, Database, Info, Code2, FileDown, CheckCircle2, Layers, Sparkles } from 'lucide-react';
+import { UploadCloud, FileImage, X, Loader2, Send, Database, Info, Code2, FileDown, CheckCircle2, Layers, Sparkles, Globe } from 'lucide-react';
 import { API_BASE } from '../config';
 
 export default function Analysis() {
+  const navigate = useNavigate();
   const [files, setFiles] = useState([]);
   const [query, setQuery] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -321,6 +323,14 @@ export default function Analysis() {
                     </div>
                   ))}
                 </div>
+
+                <button
+                  onClick={() => navigate('/globe', { state: { vector_layers: result.vector_layers } })}
+                  className="mt-3 w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-xs cursor-pointer shadow-2xs"
+                >
+                  <Globe className="w-3.5 h-3.5 text-blue-600" />
+                  View Detected Features in 3D Cesium Globe &rarr;
+                </button>
               </div>
             )}
 

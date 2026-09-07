@@ -34,7 +34,8 @@ stats_store: Dict[str, Any] = {
 
 
 class SettingsUpdate(BaseModel):
-    google_api_key: str
+    google_api_key: Optional[str] = None
+    cesium_ion_token: Optional[str] = None
 
 
 # Instantiate central Agentic Task Orchestrator
@@ -84,21 +85,37 @@ async def get_stats():
 async def get_settings():
     load_dotenv(override=True)
     key = os.environ.get("GOOGLE_API_KEY", "")
+    cesium_token = os.environ.get("CESIUM_ION_ACCESS_TOKEN", "")
     masked = f"{key[:4]}...{key[-4:]}" if len(key) > 8 else ""
+    cesium_masked = f"{cesium_token[:6]}...{cesium_token[-4:]}" if len(cesium_token) > 10 else ""
     return {
         "google_api_key_masked": masked,
-        "has_key": bool(key)
+        "has_key": bool(key),
+        "cesium_ion_token_masked": cesium_masked,
+        "has_cesium_key": bool(cesium_token),
+        "cesium_ion_token": cesium_token
     }
 
 
 @app.post("/api/settings")
 async def update_settings(settings: SettingsUpdate):
     dotenv_path = os.path.join(os.getcwd(), ".env")
-    try:
-        set_key(dotenv_path, "GOOGLE_API_KEY", settings.google_api_key)
-    except Exception:
-        with open(dotenv_path, "a") as f:
-            f.write(f"\nGOOGLE_API_KEY={settings.google_api_key}\n")
+    if settings.google_api_key is not None:
+        try:
+            set_key(dotenv_path, "GOOGLE_API_KEY", settings.google_api_key)
+        except Exception:
+            with open(dotenv_path, "a") as f:
+                f.write(f"\nGOOGLE_API_KEY={settings.google_api_key}\n")
+        os.environ["GOOGLE_API_KEY"] = settings.google_api_key
+
+    if settings.cesium_ion_token is not None:
+        try:
+            set_key(dotenv_path, "CESIUM_ION_ACCESS_TOKEN", settings.cesium_ion_token)
+        except Exception:
+            with open(dotenv_path, "a") as f:
+                f.write(f"\nCESIUM_ION_ACCESS_TOKEN={settings.cesium_ion_token}\n")
+        os.environ["CESIUM_ION_ACCESS_TOKEN"] = settings.cesium_ion_token
+
     load_dotenv(override=True)
     return {"message": "Settings updated successfully"}
 

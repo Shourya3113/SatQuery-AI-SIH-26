@@ -3,6 +3,7 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Analysis from './pages/Analysis';
 import Benchmarks from './pages/Benchmarks';
+import Globe3D from './pages/Globe3D';
 import Settings from './pages/Settings';
 
 export default function App() {
@@ -12,6 +13,7 @@ export default function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />
           <Route path="analysis" element={<Analysis />} />
+          <Route path="globe" element={<Globe3D />} />
           <Route path="benchmarks" element={<Benchmarks />} />
           <Route path="settings" element={<Settings />} />
         </Route>

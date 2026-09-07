@@ -39,9 +39,14 @@ def test_settings_endpoints(client):
     data = get_res.json()
     assert "google_api_key_masked" in data
     assert "has_key" in data
+    assert "cesium_ion_token_masked" in data
+    assert "has_cesium_key" in data
 
-    # Test POST settings
-    post_res = client.post("/api/settings", json={"google_api_key": "AIzaSyDummyKeyForTesting12345"})
+    # Test POST settings with Google Key and Cesium Ion Token
+    post_res = client.post("/api/settings", json={
+        "google_api_key": "AIzaSyDummyKeyForTesting12345",
+        "cesium_ion_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummyCesiumToken12345"
+    })
     assert post_res.status_code == 200
     assert post_res.json()["message"] == "Settings updated successfully"
 

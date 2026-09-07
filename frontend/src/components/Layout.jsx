@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Layers, Activity, Settings, PieChart, Award } from 'lucide-react';
+import { Layers, Activity, Settings, PieChart, Award, Globe } from 'lucide-react';
 
 export default function Layout() {
   const location = useLocation();
@@ -7,6 +7,7 @@ export default function Layout() {
   const navItems = [
     { name: 'Dashboard', path: '/', icon: PieChart },
     { name: 'Analysis Workspace', path: '/analysis', icon: Activity },
+    { name: '3D Globe', path: '/globe', icon: Globe },
     { name: 'Benchmarks', path: '/benchmarks', icon: Award },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
