@@ -50,6 +50,9 @@ def test_settings_endpoints(client):
     assert post_res.status_code == 200
     assert post_res.json()["message"] == "Settings updated successfully"
 
+    # Clean up test token so dev environment is not polluted
+    client.post("/api/settings", json={"cesium_ion_token": ""})
+
 
 def test_query_endpoint_with_telemetry(client, tmp_path):
     from PIL import Image
