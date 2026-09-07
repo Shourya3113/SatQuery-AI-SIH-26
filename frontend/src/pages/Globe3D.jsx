@@ -10,11 +10,8 @@ import {
   Satellite, 
   Waves, 
   Building2, 
-  Maximize2, 
   Compass, 
-  Info,
-  Sun,
-  Map
+  Info
 } from 'lucide-react';
 import { API_BASE } from '../config';
 
@@ -33,7 +30,6 @@ export default function Globe3D() {
     urban: true,
     atmosphere: true
   });
-  const [hasIonToken, setHasIonToken] = useState(false);
 
   // Quick-Fly Locations
   const PRESETS = {
@@ -41,7 +37,7 @@ export default function Globe3D() {
       name: 'India Overview',
       lon: 78.9629,
       lat: 20.5937,
-      height: 6000000,
+      height: 6500000,
       heading: 0,
       pitch: -85,
       description: 'Indian Subcontinent Earth Observation Coverage (ISRO / SAC)'
@@ -85,25 +81,30 @@ export default function Globe3D() {
   };
 
   useEffect(() => {
-    let viewer = null;
+    let isCancelled = false;
 
     const initCesium = async () => {
-      // 1. Fetch Cesium token from settings if available (skip if dummy test token)
+      // 1. Guard against duplicate instances (prevents dual-context frame jitter)
+      if (viewerRef.current && !viewerRef.current.isDestroyed()) {
+        return;
+      }
+
+      // Check optional token from backend
       try {
         const { data } = await axios.get(`${API_BASE}/api/settings`);
         if (data.cesium_ion_token && !data.cesium_ion_token.includes('dummy')) {
           Cesium.Ion.defaultAccessToken = data.cesium_ion_token;
-          setHasIonToken(true);
-        } else {
-          setHasIonToken(false);
         }
-      } catch (err) {
-        console.warn('Could not fetch Cesium settings:', err);
+      } catch (e) {
+        console.warn('Cesium settings query fallback:', e);
       }
 
-      if (!cesiumContainer.current) return;
+      if (isCancelled || !cesiumContainer.current) return;
 
-      // 2. High-Resolution Satellite Basemap via ArcGIS World Imagery (Reliable, high-res, token-free)
+      // Clean container DOM to guarantee zero zombie canvases
+      cesiumContainer.current.innerHTML = '';
+
+      // 2. Ultra-Reliable High-Resolution Satellite Basemap
       const satelliteProvider = new Cesium.UrlTemplateImageryProvider({
         url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         maximumLevel: 19,
@@ -111,8 +112,8 @@ export default function Globe3D() {
       });
       const baseLayer = new Cesium.ImageryLayer(satelliteProvider);
 
-      // 3. Initialize Cesium Viewer with clean UI and zero glitching
-      viewer = new Cesium.Viewer(cesiumContainer.current, {
+      // 3. Initialize Cesium Viewer with requestRenderMode to eliminate idle frame fighting
+      const viewer = new Cesium.Viewer(cesiumContainer.current, {
         animation: false,
         baseLayer: baseLayer,
         baseLayerPicker: false,
@@ -124,47 +125,49 @@ export default function Globe3D() {
         selectionIndicator: false,
         timeline: false,
         navigationHelpButton: false,
-        terrainProvider: new Cesium.EllipsoidTerrainProvider()
+        terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+        requestRenderMode: true, // CRITICAL FIX: Only render on camera/scene changes (zero idle jitter!)
+        maximumRenderTimeChange: Infinity,
+        msaaSamples: 4
       });
 
       viewerRef.current = viewer;
 
-      // CRITICAL FIX FOR GLITCHING & NIGHT DARKNESS:
-      // Turn off sun night shadows so the entire globe is illuminated and visible 24/7
+      // Turn off night shadow darkness so entire earth is evenly illuminated
       viewer.scene.globe.enableLighting = false;
       viewer.scene.globe.showGroundAtmosphere = true;
       viewer.scene.skyAtmosphere.show = true;
 
-      // Set distance display condition so markers only appear when zoomed in (eliminates orbital jitter)
-      const nearFarCondition = new Cesium.DistanceDisplayCondition(0.0, 7000000.0);
-
+      // 4. Create Jitter-Free Vector Overlays with Clamped Depth Tests
       const pinBuilder = new Cesium.PinBuilder();
 
       // Layer A: ISRO SAC Ahmedabad Headquarters Marker
       viewer.entities.add({
         id: 'isro-sac',
         name: 'ISRO Space Applications Centre (SAC)',
-        position: Cesium.Cartesian3.fromDegrees(72.502, 23.033, 50),
+        position: Cesium.Cartesian3.fromDegrees(72.502, 23.033, 0),
         billboard: {
-          image: pinBuilder.fromColor(Cesium.Color.fromCssColorString('#2563EB'), 44).toDataURL(),
+          image: pinBuilder.fromColor(Cesium.Color.fromCssColorString('#2563EB'), 40).toDataURL(),
           verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-          distanceDisplayCondition: nearFarCondition
+          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY // CRITICAL: Eliminates Z-fighting jitter
         },
         label: {
           text: 'ISRO SAC Ahmedabad (SIH26167)',
-          font: 'bold 13px Inter, sans-serif',
+          font: 'bold 12px Inter, sans-serif',
           style: Cesium.LabelStyle.FILL_AND_OUTLINE,
           fillColor: Cesium.Color.WHITE,
           outlineColor: Cesium.Color.BLACK,
           outlineWidth: 3,
           verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-          pixelOffset: new Cesium.Cartesian2(0, -50),
-          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0.0, 2000000.0)
+          pixelOffset: new Cesium.Cartesian2(0, -45),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0.0, 3000000.0)
         },
         description: 'Space Applications Centre (SAC), ISRO — Problem Statement SIH26167 Lead Authority for Satellite Earth Observation.'
       });
 
-      // Layer B: CDVQA Bi-Temporal Flood Inundation Polygon (3D Extrusion)
+      // Layer B: CDVQA Bi-Temporal Flood Inundation Polygon
       const floodCoords = [
         14.330, 35.110,
         14.360, 35.110,
@@ -179,13 +182,12 @@ export default function Globe3D() {
           material: Cesium.Color.fromCssColorString('#EF4444').withAlpha(0.65),
           outline: true,
           outlineColor: Cesium.Color.WHITE,
-          extrudedHeight: 80.0,
-          distanceDisplayCondition: nearFarCondition
+          classificationType: Cesium.ClassificationType.BOTH
         },
         description: 'Bi-Temporal detected inundation: 15.2% water expansion across 6.25 hectares (F1-Score: 1.0000).'
       });
 
-      // Layer C: BigEarthNet-MM Optical+SAR Footprint (3D Box)
+      // Layer C: BigEarthNet-MM Optical+SAR Footprint
       const benCoords = [
         13.390, 52.510,
         13.420, 52.510,
@@ -200,8 +202,7 @@ export default function Globe3D() {
           material: Cesium.Color.fromCssColorString('#8B5CF6').withAlpha(0.55),
           outline: true,
           outlineColor: Cesium.Color.WHITE,
-          extrudedHeight: 60.0,
-          distanceDisplayCondition: nearFarCondition
+          classificationType: Cesium.ClassificationType.BOTH
         },
         description: 'Sentinel-2 4-band optical + Sentinel-1 C-band SAR co-registered footprint.'
       });
@@ -221,28 +222,29 @@ export default function Globe3D() {
           material: Cesium.Color.fromCssColorString('#10B981').withAlpha(0.65),
           outline: true,
           outlineColor: Cesium.Color.WHITE,
-          extrudedHeight: 40.0,
-          distanceDisplayCondition: nearFarCondition
+          classificationType: Cesium.ClassificationType.BOTH
         },
         description: '0.5m GSD High-Resolution spatial grounding building complex (mIoU: 1.0000).'
       });
 
-      // 4. Handle incoming dynamic vector layers from Analysis page
+      // 5. Handle incoming dynamic vector layers from Analysis page
       if (location.state?.vector_layers && location.state.vector_layers.length > 0) {
         location.state.vector_layers.forEach((layer) => {
           if (layer.geojson) {
             Cesium.GeoJsonDataSource.load(layer.geojson, {
               stroke: Cesium.Color.fromCssColorString('#3B82F6'),
               fill: Cesium.Color.fromCssColorString('#3B82F6').withAlpha(0.5),
-              strokeWidth: 3
+              strokeWidth: 3,
+              clampToGround: true
             }).then((dataSource) => {
               viewer.dataSources.add(dataSource);
               viewer.zoomTo(dataSource);
+              viewer.scene.requestRender();
             }).catch(console.error);
           }
         });
       } else {
-        // Set initial camera directly over India
+        // Center initial camera directly over India
         viewer.camera.setView({
           destination: Cesium.Cartesian3.fromDegrees(78.9629, 20.5937, 7500000),
           orientation: {
@@ -253,7 +255,10 @@ export default function Globe3D() {
         });
       }
 
-      // 5. Setup Mouse Coordinate Tracker & Entity Selection
+      // Initial render pass
+      viewer.scene.requestRender();
+
+      // 6. Setup Mouse Coordinate Tracker & Entity Selection
       const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 
       handler.setInputAction((movement) => {
@@ -281,15 +286,20 @@ export default function Globe3D() {
         } else {
           setSelectedFeature(null);
         }
+        viewer.scene.requestRender();
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
     };
 
     initCesium();
 
     return () => {
+      isCancelled = true;
       if (viewerRef.current && !viewerRef.current.isDestroyed()) {
         viewerRef.current.destroy();
         viewerRef.current = null;
+      }
+      if (cesiumContainer.current) {
+        cesiumContainer.current.innerHTML = '';
       }
     };
   }, [location.state]);
@@ -315,6 +325,7 @@ export default function Globe3D() {
     }
 
     viewerRef.current.imageryLayers.addImageryProvider(provider);
+    viewerRef.current.scene.requestRender();
   };
 
   const flyToPreset = (key) => {
@@ -329,7 +340,10 @@ export default function Globe3D() {
         pitch: Cesium.Math.toRadians(p.pitch),
         roll: 0.0
       },
-      duration: 2.0
+      duration: 2.0,
+      complete: () => {
+        viewerRef.current?.scene?.requestRender();
+      }
     });
 
     if (p.description) {
@@ -364,6 +378,8 @@ export default function Globe3D() {
       viewerRef.current.scene.globe.showAtmosphere = updated;
       viewerRef.current.scene.skyAtmosphere.show = updated;
     }
+
+    viewerRef.current.scene.requestRender();
   };
 
   return (
