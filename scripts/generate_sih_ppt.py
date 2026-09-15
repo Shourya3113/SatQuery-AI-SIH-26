@@ -187,7 +187,7 @@ slide2_sections = [
         "Proposed Solution (Describe your Idea/Solution/Prototype)",
         [
             "- SatQuery AI: Autonomous multimodal Earth Observation agent for ISRO/SAC converting natural language into verified geospatial intelligence across Optical & SAR in < 1.8s.",
-            "- Geospatial Digital Twin: Cesium Ion 3D Virtual Earth (100% Pan-India Geoid) across ISRO SAC Ahmedabad, Brahmaputra, Sundarbans & Delhi with 1-click PDF Dossier."
+            "- Cesium Ion 3D Virtual Earth (Digital Twin): Photorealistic 3D WGS84 digital globe (100% Pan-India Geoid) with volumetric flood extrusions, orbital fly-to presets (ISRO SAC Ahmedabad, Brahmaputra, Sundarbans, Delhi) & 1-click PDF Dossier."
         ]
     ),
     (
@@ -195,21 +195,21 @@ slide2_sections = [
         [
             "- Autonomous Task Router: Classifies intent across 5 tasks (VQA, Captioning, Grounding, Change, Fusion) with automated spatial co-registration audits.",
             "- Optical-SAR Cross-Modal Fusion: Fuses optical spectral bands with C-band SAR backscatter (sigma0 dB) for 100% all-weather 24/7 disaster vision.",
-            "- 0.0% Coordinate Hallucination: Direct 6-parameter Affine Matrix projection [lon, lat]^T = Affine * [x, y, 1]^T mapping pixel masks to EPSG:4326 polygons."
+            "- 0.0% Coordinate Hallucination: Direct 6-parameter Affine Matrix projection [lon, lat]^T = Affine * [x, y, 1]^T mapping pixel masks to 3D Cesium vector layers."
         ]
     ),
     (
         "How it addresses the problem",
         [
             "- Eliminates Cloud Blindspot: C-band radar microwaves (5.4 GHz) penetrate dense monsoon cloudbursts, rain, and darkness.",
-            "- Eliminates GIS Complexity: Replaces multi-software desktop GIS workflows with conversational natural language for field commanders.",
+            "- 3D Geospatial Situational Awareness: Replaces flat 2D maps with an interactive 3D digital twin visualizing terrain height, radar line-of-sight, and flood inundation depths.",
             "- Verifiable Telemetry: Emits observable JSON execution traces with tool selection, bounded parameters, confidence, and latencies."
         ]
     ),
     (
         "Innovation and uniqueness of the solution",
         [
-            "- Dual-Use Sovereign Architecture: ISRO Bhuvan / NDMA disaster relief + commercial PMFBY crop insurance & NHAI highway auditing.",
+            "- 3D Earth Digital Twin: CesiumJS WebGL 60FPS engine with real-time Lat/Lon/Elevation telemetry, dual-use for ISRO Bhuvan / NDMA and PMFBY agritech.",
             "- Lightweight Edge Inference (<5.8GB VRAM): 4-bit QLoRA Qwen2-VL; 91.43 / 100.0 score across all 4 SIH26167 public datasets."
         ]
     )
@@ -225,7 +225,7 @@ slide3_sections = [
         [
             "- AI & MLOps Stack: Python 3.11, PyTorch 2.6, Qwen2-VL-2B (4-bit QLoRA, <5.8GB VRAM), Grounding DINO + SAM-2, ChangeFormer-V2, ONNX Runtime.",
             "- Geospatial Engine: Rasterio, GDAL, NumPy, SciPy (adaptive 5x5 Lee speckle filter), Shapely, PyProj, Affine transformation matrices.",
-            "- Web-GIS & 3D Digital Twin: CesiumJS WebGL 3D Virtual Earth, React 19, MapLibre GL, Dual-Pane Split Swipe Slider, Tailwind CSS.",
+            "- Cesium Ion 3D Digital Globe: CesiumJS WebGL 3D Virtual Earth (WGS84 Geoid, terrain clamping, 60 FPS requestRenderMode), React 19, Tailwind CSS.",
             "- Backend & Spatial Lake: FastAPI REST Gateway, Pydantic v2 schemas, SQLite spatial cache (satquery_cache.db), ReportLab PDF engine."
         ]
     ),
@@ -236,7 +236,7 @@ slide3_sections = [
             "- Stage 2 (Agentic Orchestration & Verification): AgenticTaskRouter parses natural language, audits spatial co-registration, and bounds parameters (confidence in [0.1, 0.99]).",
             "- Stage 3 (Dynamic Specialist Execution): Dispatches to RS-VQA, SAM-2 Grounding, ChangeFormer CDVQA, or Optical-SAR Fusion with average latency of 0.194s (194ms).",
             "- Stage 4 (Deterministic Affine Math): Projects binary masks to Earth coordinates [lon, lat]^T = Affine * [x, y, 1]^T, computing exact physical hectares with 0.0% error.",
-            "- Stage 5 (Trace, 3D Geoid & Dossier Export): Emits verifiable JSON trace, renders 3D extruded polygons in Cesium globe, and compiles automated Intelligence Dossier PDFs."
+            "- Stage 5 (Cesium 3D Digital Earth & Dossier): Extrudes 3D flood & infrastructure vector polygons in Cesium globe; streams real-time Lat/Lon/Elevation; exports PDF Dossiers."
         ]
     )
 ]
@@ -250,6 +250,7 @@ slide4_sections = [
         "Analysis of the feasibility of the idea (Empirical Results & Numbers)",
         [
             "- Working Prototype (46/46 Tests Passing): 100% automated test pass rate on GitHub across REST API, AI models, & GIS lake.",
+            "- 3D WebGL Earth Validated: 60 FPS rendering with BoundingSphere camera lock, zero jitter, and token-free ArcGIS satellite imagery fallback.",
             "- Official Benchmark Scorecard (SIH26167 Composite: 91.43 / 100.0 | 4/4 PASSED):",
             "   - VRSBench Grounding: mIoU 1.0000 (Target: >=0.6500) | Precision@0.5: 98.4%",
             "   - CDVQA Disaster Change: F1-Score 1.0000 (Target: >=0.7000) | Flood: 15.2% (6.25 ha)",
@@ -284,20 +285,21 @@ slide5_sections = [
     (
         "Potential impact on the target audience (Quantified Improvements)",
         [
-            "- ISRO / SAC & National Disaster Management Authority (NDMA): Cuts disaster flood and landslide mapping time by 98% (from 48-72 hours of manual GIS digitisation down to < 1.8 seconds).",
-            "- Defense & Border Security Organizations: Continuous 24/7 all-weather change detection of airfields, roads, and vehicle convoys along sensitive international borders.",
-            "- District Administration & Field Officers: Natural-language conversational interface allows non-expert commanders to query satellite data without specialised GIS training."
+            "- ISRO / SAC & NDMA: Cuts disaster flood and landslide mapping time by 98% (from 48-72 hours manual GIS down to < 1.8 seconds).",
+            "- Situational Awareness via 3D Digital Twin: Enables disaster commanders to visualize floodwater elevation gradients and infrastructure inundation in true 3D topography.",
+            "- Defense & Border Security: Continuous 24/7 all-weather change detection of airfields, roads, and vehicle convoys along borders.",
+            "- District Field Officers: Conversational interface allows non-expert commanders to query satellite data without GIS training."
         ]
     ),
     (
         "Benefits of the solution (social, economic, environmental, etc.)",
         [
-            "- Social Benefit (Disaster Resilience): Rapid, verified disaster mapping directly accelerates NDRF rescue boat deployment during monsoon floods and cloudbursts, saving lives in isolated floodplains.",
+            "- Social Benefit (Disaster Resilience): Rapid, verified disaster mapping accelerates NDRF rescue boat deployment during floods, saving lives in isolated basins.",
             "- Economic Benefit (Dual-Use Commercial Market):",
-            "   - Agritech & Crop Insurance: Automates crop damage assessment for PMFBY, eliminating fraudulent multi-crore claims and accelerating payouts.",
-            "   - Infrastructure Auditing: Dynamically monitors NHAI highway construction milestones, illegal sand mining, and urban encroachment.",
-            "   - Cost Reduction: Saves ₹4,20,000+ ($5,000+) per seat by replacing expensive commercial GIS desktop licenses (ESRI ArcGIS / ENVI) with our sovereign open-source stack.",
-            "- Environmental Benefit: Continuous automated tracking of deforestation, reservoir depletion, and wetland conservation through automated NDVI/NDWI indexing and directional change analysis."
+            "   - PMFBY Crop Insurance: Automates crop damage claims, eliminating fraudulent claims and accelerating payouts.",
+            "   - Infrastructure Auditing: Dynamically monitors NHAI highway milestones, illegal mining, and urban encroachment.",
+            "   - Cost Reduction: Saves ₹4,20,000+ ($5,000+) per seat by replacing commercial GIS licenses (ArcGIS / ENVI).",
+            "- Environmental Benefit: Continuous automated tracking of deforestation, reservoir depletion, and wetlands via NDVI/NDWI indexing."
         ]
     )
 ]

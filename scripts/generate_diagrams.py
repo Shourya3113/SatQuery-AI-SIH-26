@@ -110,13 +110,13 @@ def create_architecture_diagram():
 
     # 5. Output Layer
     p5 = patches.FancyBboxPatch((0.5, 0.2), 9.0, 1.15, boxstyle="round,pad=0.15,rounding_size=0.12",
-                                fc="#f8fafc", ec="#cbd5e1", lw=1.5)
+                                fc="#eff6ff", ec="#60a5fa", lw=1.5)
     ax.add_patch(p5)
-    ax.text(5.0, 1.05, "VERIFIABLE USER OUTPUTS & TELEMETRY (Sub-1.8s Latency)", ha='center', va='center',
-            fontsize=8.5, fontweight='bold', color=NAVY)
-    ax.text(2.0, 0.55, "• Cesium Ion 3D Digital Globe (Pan-India)\n• GeoJSON Dynamic Vector Polygons",
-            ha='left', va='center', fontsize=7.2, color=SLATE)
-    ax.text(6.0, 0.55, "• Observable JSON Execution Trace (0.19s)\n• Downloadable Intelligence Dossier PDF",
+    ax.text(5.0, 1.05, "CESIUM ION 3D DIGITAL GLOBE & VERIFIABLE TELEMETRY", ha='center', va='center',
+            fontsize=8.5, fontweight='bold', color=BLUE)
+    ax.text(0.8, 0.55, "• Cesium 3D Digital Earth (Pan-India Geoid)\n• 3D Extruded Flood & Grounding Vectors",
+            ha='left', va='center', fontsize=7.2, color=NAVY)
+    ax.text(5.4, 0.55, "• Real-Time Lat/Lon/Elevation HUD\n• Verifiable Execution Trace & PDF Dossier",
             ha='left', va='center', fontsize=7.2, color=SLATE)
 
     plt.tight_layout()
@@ -146,7 +146,7 @@ def create_pipeline_diagram():
         ("AI & MLOps", "PyTorch 2.6, Qwen2-VL\nSAM-2, ONNX FP16", 0.5, 8.2, "#eff6ff", "#bfdbfe", BLUE),
         ("Geospatial", "Rasterio, GDAL, NumPy\nLee Speckle Filter", 2.85, 8.2, "#f0fdf4", "#bbf7d0", GREEN),
         ("Backend Lake", "FastAPI, SQLite Cache\nReportLab Dossier", 5.2, 8.2, "#faf5ff", "#e9d5ff", "#7e22ce"),
-        ("Web-GIS UI", "React 18, TypeScript\nMapLibre GL Swipe", 7.55, 8.2, "#fff7ed", "#fed7aa", ORANGE)
+        ("3D Digital Twin", "CesiumJS 3D Earth\nWebGL 60FPS Geoid", 7.55, 8.2, "#eff6ff", "#93c5fd", BLUE)
     ]
     for name, desc, x, y, fc, ec, tc in pillars:
         box = patches.FancyBboxPatch((x, y), 2.0, 1.0, boxstyle="round,pad=0.1,rounding_size=0.1",
@@ -184,9 +184,9 @@ def create_pipeline_diagram():
          "Computes exact physical polygon surface area in hectares (ha).",
          "#fff7ed", "#fed7aa", ORANGE, 1.9),
 
-        ("STAGE 5: Verifiable Trace & Dossier Synthesis",
-         "Synthesizes AuditableExecutionTrace with step latencies and confidence.\n"
-         "Streams GeoJSON to MapLibre GL UI; exports automated ReportLab PDF.",
+        ("STAGE 5: Cesium 3D Digital Earth & Dossier Synthesis",
+         "Projects 3D extruded vector polygons onto photorealistic Cesium WGS84 Geoid.\n"
+         "Pan-India fly-tos (Brahmaputra, Sundarbans, Delhi); exports ReportLab PDF.",
          "#faf5ff", "#d8b4fe", "#6b21a8", 0.3)
     ]
 
