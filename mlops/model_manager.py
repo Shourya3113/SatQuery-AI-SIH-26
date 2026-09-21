@@ -15,6 +15,7 @@ Set env var SATQUERY_MOCK_ONLY=1 to skip all model loading (for tests/CI).
 import gc
 import logging
 import os
+from pathlib import Path
 from typing import Optional, Dict, Any, Tuple
 
 import torch
@@ -190,9 +191,8 @@ class ModelManager:
         model_id = "IDEA-Research/grounding-dino-tiny"
         logger.info("Loading Grounding DINO: %s", model_id)
 
-        dtype = torch.float16 if self.device.type in ("cuda", "mps") else torch.float32
         model = AutoModelForZeroShotObjectDetection.from_pretrained(
-            model_id, torch_dtype=dtype
+            model_id, torch_dtype=torch.float32
         ).to(self.device)
         model.eval()
 
@@ -218,8 +218,7 @@ class ModelManager:
         model_id = "facebook/sam-vit-base"
         logger.info("Loading SAM: %s", model_id)
 
-        dtype = torch.float16 if self.device.type == "cuda" else torch.float32
-        model = SamModel.from_pretrained(model_id, torch_dtype=dtype).to(self.device)
+        model = SamModel.from_pretrained(model_id, torch_dtype=torch.float32).to(self.device)
         model.eval()
 
         processor = SamProcessor.from_pretrained(model_id)
@@ -227,6 +226,36 @@ class ModelManager:
         self._cache[key] = (model, processor)
         self._log_vram("SAM loaded")
         return model, processor
+
+    # ------------------------------------------------------------------
+    # 4. BigEarthNet-Adapted Visual Backbone (PEFT LoRA CLIP)
+    # ------------------------------------------------------------------
+
+    def get_bigearth_adapter(self) -> Any:
+        """Returns the domain-adapted RemoteSensingCLIPAdapter model."""
+        self._guard()
+        key = "bigearth_adapter"
+        if key in self._cache:
+            return self._cache[key]
+
+        from mlops.train_adapter import RemoteSensingCLIPAdapter, NUM_CLASSES
+        logger.info("Loading BigEarthNet domain-adapted vision adapter")
+
+        adapter = RemoteSensingCLIPAdapter(num_classes=NUM_CLASSES, use_lora=True)
+        ckpt_path = Path("models") / "bigearth_adapter.pth"
+        if ckpt_path.exists():
+            try:
+                state_dict = torch.load(str(ckpt_path), map_location=self.device)
+                adapter.load_state_dict(state_dict, strict=False)
+                logger.info("Loaded weights from %s", ckpt_path)
+            except Exception as e:
+                logger.warning("Could not load adapter state dict (%s), using base weights", e)
+
+        adapter = adapter.to(self.device)
+        adapter.eval()
+        self._cache[key] = adapter
+        self._log_vram("BigEarthNet adapter loaded")
+        return adapter
 
     # ------------------------------------------------------------------
     # Unloading

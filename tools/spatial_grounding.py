@@ -211,7 +211,7 @@ class SpatialGroundingEngine(BaseSpecialistTool):
         results = gdino_processor.post_process_grounded_object_detection(
             gdino_outputs,
             gdino_inputs.input_ids,
-            box_threshold=max(0.15, confidence_thresh - 0.2),
+            threshold=max(0.15, confidence_thresh - 0.2),
             text_threshold=max(0.15, confidence_thresh - 0.2),
             target_sizes=[(img_h, img_w)],
         )[0]

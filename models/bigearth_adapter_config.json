@@ -1,0 +1,30 @@
+{
+  "task": "BigEarthNet-19 Multi-Label Remote Sensing Domain Adaptation",
+  "classes": [
+    "Urban fabric",
+    "Industrial or commercial units",
+    "Arable land",
+    "Permanent crops",
+    "Pastures",
+    "Complex cultivation patterns",
+    "Land principally occupied by agriculture",
+    "Broad-leaved forest",
+    "Coniferous forest",
+    "Mixed forest",
+    "Natural grassland",
+    "Moors and heathland",
+    "Sclerophyllous vegetation",
+    "Transitional woodland-shrub",
+    "Beaches, dunes, sands",
+    "Inland wetlands",
+    "Coastal wetlands",
+    "Inland waters",
+    "Marine waters"
+  ],
+  "num_classes": 19,
+  "lora_rank": 8,
+  "lora_alpha": 16,
+  "best_micro_f1": 0.06451612896566075,
+  "epochs_trained": 2,
+  "device": "cuda"
+}
