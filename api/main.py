@@ -344,7 +344,8 @@ async def process_query(
     confidence_threshold: Optional[float] = Form(None),
     change_threshold: Optional[float] = Form(None),
     speckle_filter_kernel: Optional[int] = Form(None),
-    max_tokens: Optional[int] = Form(None)
+    max_tokens: Optional[int] = Form(None),
+    include_xai: Optional[bool] = Form(False)
 ):
     """
     Receives remote sensing imagery (single, bi-temporal pair, or cross-modal optical+SAR pair)
@@ -382,6 +383,8 @@ async def process_query(
         raw_params["speckle_filter_kernel"] = speckle_filter_kernel
     if max_tokens is not None:
         raw_params["max_tokens"] = max_tokens
+    if include_xai is not None:
+        raw_params["include_xai"] = include_xai
 
     # Execute Peter's Agentic Task Router
     try:
