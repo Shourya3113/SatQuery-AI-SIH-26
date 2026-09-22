@@ -4,7 +4,7 @@ Owner: Pradipti (Research, Benchmarks, QA & Pitch Lead)
 """
 
 import pytest
-from core.schemas import ModalityType, TaskCategory
+from core.schemas import ModalityType, TaskCategory, InputImageMetadata
 from services.orchestrator import AgenticTaskRouter
 
 
@@ -26,6 +26,20 @@ def test_agentic_task_router_classification():
     # Test optical-SAR fusion
     task4 = router.classify_task("Use the optical and SAR images together to identify built-up and water-covered regions", 2, [ModalityType.OPTICAL_RGB, ModalityType.SAR_C_BAND])
     assert task4 == TaskCategory.CROSS_MODAL_JOINT_ANALYSIS
+
+    metadata = InputImageMetadata(
+        filename="test.tif",
+        format="GeoTIFF",
+        modality=ModalityType.OPTICAL_MULTISPECTRAL,
+        width=512,
+        height=512,
+        bands=4
+    )
+
+    band_result = router.validate_band_count(metadata)
+
+    assert band_result["valid"] is True
+    assert band_result["bands"] == 4
 
 
 def test_parameter_bounding_guardrails():
