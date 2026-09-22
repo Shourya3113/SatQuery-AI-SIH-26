@@ -1,0 +1,243 @@
+{
+  "benchmark": "SatQuery AI - RS-XAI Scientific Faithfulness Benchmark",
+  "timestamp": "2026-09-22 19:48:21 UTC",
+  "dataset": "BigEarthNet-MM Official Benchmark Patches (Sentinel-2 4-Band + Sentinel-1 SAR C-Band)",
+  "tasks": {
+    "water_delineation_ndwi": {
+      "pfi": {
+        "method": "Permutation Feature Importance (PFI)",
+        "baseline_score": 0.30204,
+        "n_permutations": 5,
+        "band_importance_mean": {
+          "B02_Blue": 0.0,
+          "B03_Green": 0.02657,
+          "B04_Red": 0.0,
+          "B08_NIR": 0.02712
+        },
+        "band_importance_std": {
+          "B02_Blue": 0.0,
+          "B03_Green": 0.00032,
+          "B04_Red": 0.0,
+          "B08_NIR": 0.00035
+        },
+        "normalized_weights": {
+          "B02_Blue": 0.0,
+          "B03_Green": 0.4949,
+          "B04_Red": 0.0,
+          "B08_NIR": 0.5051
+        },
+        "dominant_band": "B08_NIR",
+        "latency_ms": 20.47,
+        "hardware_tier": "Zero-VRAM Gradient-Free (CPU/GPU Compatible)"
+      },
+      "physics_validation": {
+        "index_type": "NDWI",
+        "formula": "NDWI = (Green - NIR) / (Green + NIR)",
+        "primary_bands": [
+          "B03_Green",
+          "B08_NIR"
+        ],
+        "primary_importance_weight": 1.0,
+        "secondary_importance_weight": 0.0,
+        "threshold_required": 0.5,
+        "physically_consistent": true,
+        "scientific_rationale": "NDWI physics strictly requires sensitivity in B03_Green, B08_NIR. Empirical PFI allocated 100.0% importance to primary bands (PASS vs threshold 50%)."
+      },
+      "aopc_saliency_faithfulness": {
+        "method": "AOPC Saliency Faithfulness Evaluation (Samek et al. 2016)",
+        "baseline_unperturbed_score": 0.30204,
+        "baseline_empty_score": 0.64799,
+        "perturbation_fractions": [
+          0.1,
+          0.2,
+          0.3,
+          0.4,
+          0.5
+        ],
+        "curves": {
+          "morf_scores": [
+            0.267,
+            0.23989,
+            0.29091,
+            0.34191,
+            0.39294
+          ],
+          "lerf_scores": [
+            0.35304,
+            0.40403,
+            0.45506,
+            0.50606,
+            0.55709
+          ],
+          "random_scores": [
+            0.33649,
+            0.36984,
+            0.40458,
+            0.43783,
+            0.47252
+          ],
+          "insertion_scores": [
+            0.68303,
+            0.71014,
+            0.65911,
+            0.60812,
+            0.55709
+          ]
+        },
+        "aopc_scores": {
+          "aopc_morf": 0.02166,
+          "aopc_random": 0.0,
+          "aopc_lerf": 0.0
+        },
+        "insertion_auc": 0.6435,
+        "faithfulness_ratio": 21664.321,
+        "morf_exceeds_random": true,
+        "morf_exceeds_lerf": true,
+        "is_faithful": true,
+        "latency_ms": 5.0,
+        "hardware_tier": "Zero-VRAM Gradient-Free (CPU/GPU Compatible)"
+      }
+    },
+    "vegetation_canopy_ndvi": {
+      "pfi": {
+        "method": "Permutation Feature Importance (PFI)",
+        "baseline_score": 0.31212,
+        "n_permutations": 5,
+        "band_importance_mean": {
+          "B02_Blue": 0.0,
+          "B03_Green": 0.0,
+          "B04_Red": 0.03245,
+          "B08_NIR": 0.03282
+        },
+        "band_importance_std": {
+          "B02_Blue": 0.0,
+          "B03_Green": 0.0,
+          "B04_Red": 0.00019,
+          "B08_NIR": 0.00015
+        },
+        "normalized_weights": {
+          "B02_Blue": 0.0,
+          "B03_Green": 0.0,
+          "B04_Red": 0.4972,
+          "B08_NIR": 0.5028
+        },
+        "dominant_band": "B08_NIR",
+        "latency_ms": 6.0,
+        "hardware_tier": "Zero-VRAM Gradient-Free (CPU/GPU Compatible)"
+      },
+      "physics_validation": {
+        "index_type": "NDVI",
+        "formula": "NDVI = (NIR - Red) / (NIR + Red)",
+        "primary_bands": [
+          "B04_Red",
+          "B08_NIR"
+        ],
+        "primary_importance_weight": 1.0,
+        "secondary_importance_weight": 0.0,
+        "threshold_required": 0.5,
+        "physically_consistent": true,
+        "scientific_rationale": "NDVI physics strictly requires sensitivity in B04_Red, B08_NIR. Empirical PFI allocated 100.0% importance to primary bands (PASS vs threshold 50%)."
+      },
+      "aopc_saliency_faithfulness": {
+        "method": "AOPC Saliency Faithfulness Evaluation (Samek et al. 2016)",
+        "baseline_unperturbed_score": 0.31212,
+        "baseline_empty_score": 0.23216,
+        "perturbation_fractions": [
+          0.1,
+          0.2,
+          0.3,
+          0.4,
+          0.5
+        ],
+        "curves": {
+          "morf_scores": [
+            0.29677,
+            0.28142,
+            0.26607,
+            0.25072,
+            0.23536
+          ],
+          "lerf_scores": [
+            0.33533,
+            0.35499,
+            0.33963,
+            0.32428,
+            0.30892
+          ],
+          "random_scores": [
+            0.30419,
+            0.29675,
+            0.28869,
+            0.2813,
+            0.27326
+          ],
+          "insertion_scores": [
+            0.24751,
+            0.26286,
+            0.27822,
+            0.29356,
+            0.30892
+          ]
+        },
+        "aopc_scores": {
+          "aopc_morf": 0.04605,
+          "aopc_random": 0.02329,
+          "aopc_lerf": 0.00064
+        },
+        "insertion_auc": 0.27821,
+        "faithfulness_ratio": 1.978,
+        "morf_exceeds_random": true,
+        "morf_exceeds_lerf": true,
+        "is_faithful": true,
+        "latency_ms": 3.99,
+        "hardware_tier": "Zero-VRAM Gradient-Free (CPU/GPU Compatible)"
+      }
+    },
+    "optical_sar_joint_fusion": {
+      "pfi": {
+        "method": "Permutation Feature Importance (PFI)",
+        "baseline_score": 0.15846,
+        "n_permutations": 5,
+        "band_importance_mean": {
+          "B02_Blue": 0.0,
+          "B03_Green": 0.0,
+          "B04_Red": 0.01913,
+          "B08_NIR": 0.02796,
+          "SAR_C_Band": 0.01801
+        },
+        "band_importance_std": {
+          "B02_Blue": 0.0,
+          "B03_Green": 0.0,
+          "B04_Red": 0.00014,
+          "B08_NIR": 0.00017,
+          "SAR_C_Band": 0.00024
+        },
+        "normalized_weights": {
+          "B02_Blue": 0.0,
+          "B03_Green": 0.0,
+          "B04_Red": 0.2938,
+          "B08_NIR": 0.4295,
+          "SAR_C_Band": 0.2767
+        },
+        "dominant_band": "B08_NIR",
+        "latency_ms": 21.0,
+        "hardware_tier": "Zero-VRAM Gradient-Free (CPU/GPU Compatible)"
+      },
+      "sar_contribution_pct": 27.67,
+      "optical_contribution_pct": 72.33
+    }
+  },
+  "summary": {
+    "physics_consistency_status": "PASSED",
+    "aopc_faithfulness_status": "PASSED",
+    "overall_status": "PASSED",
+    "ndwi_faithfulness_ratio": 21664.321,
+    "ndvi_faithfulness_ratio": 1.978,
+    "total_benchmark_latency_ms": 56.47,
+    "hardware_safety": {
+      "zero_vram_leak": true,
+      "torch_autograd_used": false,
+      "hardware_tier": "Zero-VRAM Gradient-Free (Laptop GPU / CPU Compatible)"
+    }
+  }
+}

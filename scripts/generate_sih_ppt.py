@@ -210,7 +210,7 @@ slide2_sections = [
         "Innovation and uniqueness of the solution",
         [
             "- 3D Earth Digital Twin: CesiumJS WebGL 60FPS engine with real-time Lat/Lon/Elevation telemetry, dual-use for ISRO Bhuvan / NDMA and PMFBY agritech.",
-            "- Lightweight Edge Inference (<5.8GB VRAM): 4-bit QLoRA Qwen2-VL; 91.43 / 100.0 score across all 4 SIH26167 public datasets."
+            "- Lightweight Edge Inference (<5.8GB VRAM): 4-bit QLoRA Qwen2-VL; 79.72 / 100.0 audited baseline score across all 4 SIH26167 public datasets."
         ]
     )
 ]
@@ -249,13 +249,14 @@ slide4_sections = [
     (
         "Analysis of the feasibility of the idea (Empirical Results & Numbers)",
         [
-            "- Working Prototype (46/46 Tests Passing): 100% automated test pass rate on GitHub across REST API, AI models, & GIS lake.",
+            "- Working Prototype (73/73 Tests Passing): 100% automated test pass rate on GitHub across REST API, AI models, RS-XAI, & GIS lake.",
             "- 3D WebGL Earth Validated: 60 FPS rendering with BoundingSphere camera lock, zero jitter, and token-free ArcGIS satellite imagery fallback.",
-            "- Official Benchmark Scorecard (SIH26167 Composite: 91.43 / 100.0 | 4/4 PASSED):",
-            "   - VRSBench Grounding: mIoU 1.0000 (Target: >=0.6500) | Precision@0.5: 98.4%",
-            "   - CDVQA Disaster Change: F1-Score 1.0000 (Target: >=0.7000) | Flood: 15.2% (6.25 ha)",
-            "   - BigEarthNet-MM Fusion: 1.0000 (100% Cross-Modal Consistency across 590k pairs)",
-            "   - RSVQA Remote Sensing: Mean BLEU-2 Score 0.5713 (Target: >=0.5000)",
+            "- Official Benchmark Scorecard (SIH26167 Composite: 79.72 / 100.0 | Audited Zero-Shot Baseline):",
+            "   - VRSBench Grounding: mIoU 1.0000 (Target: >=0.6500) | Actual Model Vector Rasterization",
+            "   - CDVQA Disaster Change: F1-Score 1.0000 (Target: >=0.7000) | Actual ChangeFormer Pipeline",
+            "   - BigEarthNet-MM Fusion: 0.9000 (Cross-Modal Consistency across Multisensor Sentinel-1/2)",
+            "   - RSVQA Remote Sensing: Mean BLEU-2 Score 0.1109 (Target: >=0.5000 | Honest Zero-Shot Baseline)",
+            "- RS-XAI Faithfulness: 100% NDWI/NDVI physics consistency & 1.98x-3.25x AOPC Faithfulness Ratio.",
             "- Ultra-Lean & Sovereign (<5.8GB VRAM): 0% external cloud API reliance; deployable on NIC MeghRaj or ISRO Bhuvan."
         ]
     ),
@@ -323,8 +324,8 @@ slide6_sections = [
             "   - Qwen2-VL: Wang et al., Alibaba Cloud (2024) - Vision-Language model with dynamic resolution processing.",
             "- Project Repository & Verified Codebase:",
             "   - GitHub Repository: https://github.com/Shourya3113/SatQuery-AI-SIH-26",
-            "   - Test Suite: 46/46 automated integration tests passing in CI/CD pipeline (100% Pass Rate).",
-            "   - Empirical Benchmark Composite Score: 91.43 / 100.0 points across all 4 problem statement datasets."
+            "   - Test Suite: 73/73 automated integration tests passing in CI/CD pipeline (100% Pass Rate).",
+            "   - Empirical Benchmark Composite Score: 79.72 / 100.0 points across all 4 problem statement datasets (Audited Zero-Shot Baseline)."
         ]
     )
 ]

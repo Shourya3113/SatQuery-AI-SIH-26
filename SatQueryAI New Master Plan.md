@@ -247,7 +247,7 @@ Compliant with the mandatory **6-slide AICTE / SIH 2026 limit** (11.0 pt bullets
 * **Slide 1:** Cover Slide (SIH26167, Team SatQuery AI, 6-person roster).
 * **Slide 2:** Proposed Solution & System Architecture (Agentic Router, Cesium 3D Twin, SAR Fusion, Affine Math).
 * **Slide 3:** Technical Approach & 5-Stage Pipeline (Full stack, Stage 1–5 methodology).
-* **Slide 4:** Feasibility & Risk Mitigation (46/46 tests, 91.43/100 scorecard, 60 FPS 3D WebGL).
+* **Slide 4:** Feasibility & Risk Mitigation (73/73 tests, 79.72/100 scorecard, 60 FPS 3D WebGL).
 * **Slide 5:** Impact & Benefits (₹27,600 Cr/yr flood loss addressable, 98% turnaround reduction, PMFBY acceleration).
 * **Slide 6:** Research References & Verified Codebase (7 peer-reviewed papers, ISRO sensor specs, GitHub link).
 
@@ -265,7 +265,7 @@ Compliant with the mandatory **6-slide AICTE / SIH 2026 limit** (11.0 pt bullets
 *A: It dynamically parses natural language intent, audits spatial co-registration across multi-sensor footprints, verifies CRS compatibility, enforces mathematical parameter guardrails (confidence ∈ [0.1, 0.99], threshold ∈ [0.1, 0.95]), sequences multi-step tool pipelines, and emits an observable JSON execution trace with microsecond step latencies and confidence scores.*
 
 **Q: How do you prove models didn't memorize benchmarks?**
-*A: We have 46 automated integration tests in CI/CD. The system runs live affine projection on raw GeoTIFF headers. During the jury demo, upload any arbitrary GeoTIFF or change thresholds — SatQuery AI dynamically re-projects vectors onto the Cesium 3D globe in real time. The entire pipeline is reproducible from our public GitHub repository.*
+*A: We have 73 automated integration tests in CI/CD. The system runs live affine projection on raw GeoTIFF headers. During the jury demo, upload any arbitrary GeoTIFF or change thresholds — SatQuery AI dynamically re-projects vectors onto the Cesium 3D globe in real time. The entire pipeline is reproducible from our public GitHub repository.*
 
 **Q: What is the commercial viability beyond government?**
 *A: SatQuery AI is a sovereign dual-use platform. Primary mission: ISRO Bhuvan + NDMA (addressing ₹27,600 Cr/year avg flood losses). Commercial spin-off: automates PMFBY crop damage audits for 4.19 crore enrolled farmers (compressing 60–90 day disputes to < 48 hours), monitors 13,814+ km of NHAI highways, and saves ₹62–175 lakh/year per 50-analyst team by replacing ArcGIS Pro licenses.*

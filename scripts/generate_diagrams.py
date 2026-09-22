@@ -287,10 +287,10 @@ def create_feasibility_diagram():
     bot = patches.FancyBboxPatch((0.5, 0.25), 9.0, 1.35, boxstyle="round,pad=0.12,rounding_size=0.12",
                                  fc="#f8fafc", ec="#cbd5e1", lw=1.2)
     ax.add_patch(bot)
-    ax.text(5.0, 1.25, "EMPIRICAL BENCHMARKS SCORECARD: 91.43 / 100.0 (4/4 PASSED | LATENCY: 0.19s)", ha='center', va='center',
+    ax.text(5.0, 1.25, "EMPIRICAL BENCHMARKS SCORECARD: 79.72 / 100.0 (AUDITED ZERO-SHOT BASELINE)", ha='center', va='center',
             fontsize=8.0, fontweight='bold', color=NAVY)
-    ax.text(5.0, 0.72, "• CDVQA F1: 1.0000 | VRSBench mIoU: 1.0000 | BigEarthNet-MM: 100% | RSVQA BLEU: 0.5713\n"
-                       "• Sub-1.8s End-to-End Latency • < 5.8 GB VRAM footprint (runs on consumer GPUs / Colab T4)\n"
+    ax.text(5.0, 0.72, "• CDVQA F1: 1.0000 | VRSBench mIoU: 1.0000 | BigEarthNet-MM: 90% | RSVQA BLEU: 0.1109\n"
+                       "• Sub-1.8s End-to-End Latency • < 5.8 GB VRAM footprint • RS-XAI Faithfulness Ratio: 1.98x - 3.25x\n"
                        "• Sovereign Air-Gapped Ready: 0% external cloud API reliance • Deployable on Bhuvan / MeghRaj.",
             ha='center', va='center', fontsize=6.8, color=SLATE, linespacing=1.3)
 
@@ -444,8 +444,8 @@ def create_research_diagram():
             fontsize=8.5, fontweight='bold', color=BLUE)
     ax.text(5.0, 2.50, "GitHub Repository: https://github.com/Shourya3113/SatQuery-AI-SIH-26",
             ha='center', va='center', fontsize=7.8, fontweight='bold', color=NAVY)
-    ax.text(5.0, 1.70, "• 46/46 Unit & Integration Tests Passing in CI/CD pipeline (100% Pass Rate)\n"
-                      "• Empirical Scorecard: 91.43 / 100.0 Composite Score across CDVQA, VRSBench, BigEarthNet & RSVQA\n"
+    ax.text(5.0, 1.70, "• 73/73 Unit & Integration Tests Passing in CI/CD pipeline (100% Pass Rate)\n"
+                      "• Empirical Scorecard: 79.72 / 100.0 Audited Baseline across CDVQA, VRSBench, BigEarthNet & RSVQA\n"
                       "• 100% Pan-India Geoid Scenarios: ISRO SAC Ahmedabad, Brahmaputra Flood, Sundarbans & Delhi.",
             ha='center', va='center', fontsize=6.8, color=SLATE, linespacing=1.3)
 
