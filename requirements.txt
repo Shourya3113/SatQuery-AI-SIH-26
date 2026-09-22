@@ -35,6 +35,14 @@ open-clip-torch>=2.24.0
 # MLOps & Inference Optimization
 onnx>=1.16.0
 onnxruntime>=1.17.0
+bitsandbytes
+peft
+datasets
+
+# Vision / Grounding Models
+groundingdino-py
+segment-anything
+open-clip-torch
 
 # Reporting & Benchmarking
 reportlab>=4.1.0

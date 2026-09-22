@@ -1,15 +1,12 @@
-"""
-SatQuery AI - FastAPI REST Gateway
-Owner: Achintya (Backend Lead) & Vinayak (Secondary Backend)
-Integrated with Peter's Agentic Task Orchestrator & Misha's Geospatial Pipeline.
-"""
-
 import os
 import time
 import uuid
+import datetime
 import shutil
 from pathlib import Path
 from typing import List, Optional, Dict, Any
+
+import torch
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,6 +18,7 @@ from core.config import UPLOADS_DIR, OUTPUTS_DIR
 from core.schemas import QueryResponse, TaskCategory
 from services.orchestrator import AgenticTaskRouter
 from services.report_generator import generate_report
+from mlops.model_manager import ModelManager
 
 # In-memory stores for traces, full responses, and operational stats
 execution_traces: Dict[str, Dict[str, Any]] = {}
@@ -40,6 +38,7 @@ class SettingsUpdate(BaseModel):
 
 # Instantiate central Agentic Task Orchestrator
 orchestrator = AgenticTaskRouter()
+model_manager = ModelManager()
 
 app = FastAPI(
     title="SatQuery AI REST Gateway",
@@ -55,6 +54,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def preload_models():
+    """
+    Preload all specialist AI models at API startup.
+    """
+    print("[STARTUP] Preloading AI models...")
+
+    models = [
+        ("VQA", model_manager.get_vqa_model),
+        ("Grounding DINO", model_manager.get_grounding_dino),
+        ("SAM", model_manager.get_sam),
+        ("BigEarthNet Adapter", model_manager.get_bigearth_adapter),
+    ]
+
+    for name, loader in models:
+        try:
+            print(f"[STARTUP] Loading {name}...")
+            loader()
+            print(f"[STARTUP] {name} loaded successfully")
+        except Exception as e:
+            print(f"[STARTUP] Failed to load {name}: {e}")
+
+    print("[STARTUP] Model preload complete")
 
 @app.get("/api/health")
 async def health_check():
@@ -63,6 +85,47 @@ async def health_check():
         "service": "SatQuery AI Gateway",
         "isro_problem_id": "SIH26167",
         "orchestrator_status": "ACTIVE"
+    }
+
+@app.get("/api/models/status")
+async def models_status():
+    """
+    Returns local model availability and detected compute device.
+    """
+
+    model_dir = Path(__file__).resolve().parent.parent / "models"
+
+    models = {
+        "qwen2-vl-2b": model_dir / "qwen2-vl-2b",
+        "grounding-dino-tiny": model_dir / "grounding-dino-tiny",
+        "sam-vit-base": model_dir / "sam-vit-base",
+        "clip-vit-b16": model_dir / "clip-vit-b16",
+    }
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    gpu = None
+
+    if torch.cuda.is_available():
+        gpu = {
+            "name": torch.cuda.get_device_name(0),
+            "cuda_version": torch.version.cuda,
+            "memory_total_gb": round(
+                torch.cuda.get_device_properties(0).total_memory / (1024 ** 3),
+                2
+            )
+        }
+
+    return {
+        "device": device,
+        "gpu": gpu,
+        "models": {
+            name: {
+                "available": path.exists() and any(path.iterdir()),
+                "path": str(path)
+            }
+            for name, path in models.items()
+        }
     }
 
 
@@ -356,6 +419,22 @@ async def process_query(
             detail="No image uploaded. Provide either 'image' or 'files'."
         )
 
+    saved_paths: List[Path] = []
+
+    for f in uploaded_files:
+        target_path = UPLOADS_DIR / f.filename
+
+        step_start = time.perf_counter()
+
+        with open(target_path, "wb") as buffer:
+            shutil.copyfileobj(f.file, buffer)
+
+        duration_ms = round(
+            (time.perf_counter() - step_start) * 1000,
+            2
+        )
+
+        saved_paths.append(target_path)
     saved_paths: List[Path] = []
     for f in uploaded_files:
         target_path = UPLOADS_DIR / f.filename
