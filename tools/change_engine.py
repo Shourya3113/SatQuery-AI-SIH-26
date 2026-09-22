@@ -9,8 +9,6 @@ import logging
 from typing import Dict, Any, Tuple, Optional
 import numpy as np
 from scipy import ndimage
-from shapely.geometry import box, mapping
-
 from tools.base import BaseSpecialistTool
 from services.geospatial import GeospatialEngine
 
@@ -42,8 +40,6 @@ class BiTemporalChangeEngine(BaseSpecialistTool):
         change_thresh = float(parameters.get("change_threshold", 0.65))
         pixel_size_m = getattr(meta_t1, "spatial_resolution_m", 10.0) if meta_t1 else 10.0
         bounds = getattr(meta_t1, "bounding_box", None) if meta_t1 else None
-        if not bounds:
-            bounds = [77.10, 28.60, 77.25, 28.75]
 
         # -------------------------------------------------------------
         # 1. Prepare Arrays and Align Dimensions
@@ -131,53 +127,9 @@ class BiTemporalChangeEngine(BaseSpecialistTool):
             binary_mask=cleaned_mask,
             affine_transform=affine_transform,
             layer_name=layer_name,
-            pixel_size_m=pixel_size_m
+            pixel_size_m=pixel_size_m,
+            crs=getattr(meta_t1, "crs", None) if meta_t1 else None
         )
-
-        # Ensure at least 1 vector layer is present for visualization
-        if vector_result["feature_count"] == 0:
-            min_lon, min_lat, max_lon, max_lat = bounds
-            lon_span = max_lon - min_lon
-            lat_span = max_lat - min_lat
-
-            if changed_pixels > 0:
-                poly_box = box(
-                    min_lon + 0.25 * lon_span,
-                    min_lat + 0.25 * lat_span,
-                    min_lon + 0.55 * lon_span,
-                    min_lat + 0.55 * lat_span
-                )
-                feat_area_ha = round(float(changed_pixels * (pixel_size_m ** 2) / 10000.0), 2)
-            else:
-                # Delineate full baseline observation footprint
-                poly_box = box(min_lon, min_lat, max_lon, max_lat)
-                feat_area_ha = 0.0
-
-            vector_result = {
-                "layer_name": layer_name,
-                "feature_type": "FeatureCollection",
-                "feature_count": 1,
-                "geojson": {
-                    "type": "FeatureCollection",
-                    "features": [{
-                        "type": "Feature",
-                        "properties": {
-                            "layer": layer_name,
-                            "change_type": change_type,
-                            "area_hectares": feat_area_ha,
-                            "change_percentage": change_pct,
-                            "built_up_status": built_status
-                        },
-                        "geometry": mapping(poly_box)
-                    }]
-                },
-                "metrics": {
-                    "total_pixel_count": changed_pixels,
-                    "total_area_hectares": feat_area_ha,
-                    "pixel_resolution_m": pixel_size_m,
-                    "change_percentage": change_pct
-                }
-            }
 
         total_area_ha = vector_result["metrics"].get("total_area_hectares", 0.0)
 
@@ -203,9 +155,15 @@ class BiTemporalChangeEngine(BaseSpecialistTool):
                 f"The primary mode of alteration is {change_type}."
             )
 
+        if changed_pixels == 0:
+            computed_conf = 0.95
+        else:
+            contrast = float(np.mean(raw_diff[cleaned_mask == 1])) if changed_pixels > 0 else 0.0
+            computed_conf = min(0.95, max(0.60, round(0.50 + contrast * 0.8, 3)))
+
         output = {
             "answer": answer,
-            "confidence": 0.92,
+            "confidence": computed_conf,
             "change_percentage": change_pct,
             "changed_area_hectares": total_area_ha,
             "change_type": change_type,
@@ -214,9 +172,24 @@ class BiTemporalChangeEngine(BaseSpecialistTool):
             "vector_layer": vector_result
         }
 
+        # RS-XAI Integration
+        if parameters.get("include_xai", False):
+            try:
+                from mlops.xai_engine import RSAIXEngine
+                xai_engine = RSAIXEngine()
+                output["xai_explanation"] = xai_engine.explain_change_detection(
+                    raster_t1=b1,
+                    raster_t2=b2,
+                    change_mask=cleaned_mask,
+                    change_pct=change_pct,
+                    confidence=computed_conf
+                )
+            except Exception as e:
+                logger.warning("Change detection XAI generation failed: %s", e)
+
         telemetry = {
             "status": "SUCCESS",
-            "model": "ChangeFormer-Adaptive-Morphological-CD",
+            "model": "Deterministic Bi-Temporal Change Engine",
             "backend": "bitemporal_multi_channel_difference_and_morphology",
             "changed_pixels": changed_pixels,
             "change_percentage": change_pct,

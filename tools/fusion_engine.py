@@ -16,8 +16,6 @@ Scientific Formulation:
 import logging
 from typing import Dict, Any, Tuple, List
 import numpy as np
-from shapely.geometry import box, mapping
-
 from tools.base import BaseSpecialistTool
 from services.geospatial import (
     GeospatialEngine,
@@ -61,8 +59,6 @@ class OpticalSARFusionEngine(BaseSpecialistTool):
         confidence_thresh = float(parameters.get("confidence_threshold", 0.75))
         pixel_size_m = getattr(meta_opt, "spatial_resolution_m", 10.0) if meta_opt else 10.0
         bounds = getattr(meta_opt, "bounding_box", None) if meta_opt else None
-        if not bounds:
-            bounds = [77.10, 28.60, 77.25, 28.75]
 
         # -------------------------------------------------------------
         # 1. Optical Raster Processing
@@ -199,53 +195,9 @@ class OpticalSARFusionEngine(BaseSpecialistTool):
                 binary_mask=mask,
                 affine_transform=affine_transform,
                 layer_name=layer_name,
-                pixel_size_m=pixel_size_m
+                pixel_size_m=pixel_size_m,
+                crs=getattr(meta_opt, "crs", None) if meta_opt else None
             )
-
-            # Fallback if 0 features from rasterio (e.g. synthetic test patch without affine)
-            if vec_res["feature_count"] == 0:
-                pixel_count = int(np.sum(mask))
-                if pixel_count == 0:
-                    h_c, w_c = h // 2, w // 2
-                    r_c = max(10, min(h, w) // 10)
-                    mask[h_c - r_c:h_c + r_c, w_c - r_c:w_c + r_c] = 1
-                    pixel_count = int(np.sum(mask))
-
-                min_lon, min_lat, max_lon, max_lat = bounds
-                lon_span = max_lon - min_lon
-                lat_span = max_lat - min_lat
-                offset = 0.08 if "water" in layer_name else 0.42
-                poly_box = box(
-                    min_lon + offset * lon_span,
-                    min_lat + offset * lat_span,
-                    min_lon + (offset + 0.28) * lon_span,
-                    min_lat + (offset + 0.28) * lat_span
-                )
-                area_ha = round(float(pixel_count * (pixel_size_m ** 2) / 10000.0), 2)
-                vec_res = {
-                    "layer_name": layer_name,
-                    "feature_type": "FeatureCollection",
-                    "feature_count": 1,
-                    "geojson": {
-                        "type": "FeatureCollection",
-                        "features": [{
-                            "type": "Feature",
-                            "properties": {
-                                "layer": layer_name,
-                                "category": target_cat,
-                                "area_hectares": area_ha,
-                                "speckle_kernel": kernel_size,
-                                "physics": "Specular scattering" if "water" in target_cat else "Dihedral double-bounce"
-                            },
-                            "geometry": mapping(poly_box)
-                        }]
-                    },
-                    "metrics": {
-                        "total_pixel_count": pixel_count,
-                        "total_area_hectares": area_ha,
-                        "pixel_resolution_m": pixel_size_m
-                    }
-                }
 
             if "water" in layer_name:
                 water_ha = vec_res["metrics"].get("total_area_hectares", 0.0)
@@ -268,7 +220,7 @@ class OpticalSARFusionEngine(BaseSpecialistTool):
             f"(sigma0 > -7 dB). Cross-modal spatial agreement: {agreement_pct}%."
         )
 
-        overall_confidence = min(0.96, max(0.86, confidence_thresh + 0.12))
+        overall_confidence = round(min(0.95, max(0.50, (agreement_pct / 100.0) * 0.4 + 0.50)), 3)
 
         output = {
             "answer": answer,
@@ -284,9 +236,30 @@ class OpticalSARFusionEngine(BaseSpecialistTool):
             }
         }
 
+        # RS-XAI Integration
+        if parameters.get("include_xai", False):
+            try:
+                from mlops.xai_engine import RSAIXEngine
+                xai_engine = RSAIXEngine()
+                v_scores = {
+                    "empty": 0.0,
+                    "optical": float(np.mean(p_opt_water > 0.4)),
+                    "sar": float(np.mean(p_sar_water > 0.4)),
+                    "joint": overall_confidence
+                }
+                combined_mask = np.maximum(water_mask, urban_mask)
+                output["xai_explanation"] = xai_engine.explain_multimodal_fusion(
+                    optical_raster=opt_bands,
+                    sar_raster=sar_filtered,
+                    v_scores=v_scores,
+                    feature_mask=combined_mask
+                )
+            except Exception as e:
+                logger.warning("Fusion XAI explanation failed: %s", e)
+
         telemetry = {
             "status": "SUCCESS",
-            "model": "Physics-Grounded Cross-Modal Optical-SAR Evidence Fusion",
+            "model": "Physics-Guided Evidence Fusion Engine",
             "backend": "radiometric_calibration_lee_filter_bayesian_fusion",
             "sar_filter_kernel": kernel_size,
             "layers_generated": len(vector_layers),

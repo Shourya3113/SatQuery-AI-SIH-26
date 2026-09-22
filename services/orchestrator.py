@@ -22,7 +22,8 @@ from core.schemas import (
     VectorFeature,
     AuditableExecutionTrace,
     QueryResponse,
-    InputImageMetadata
+    InputImageMetadata,
+    XAIExplanation
 )
 from core.config import PERMITTED_PARAMETERS
 from services.geospatial import GeospatialEngine
@@ -143,13 +144,19 @@ class AgenticTaskRouter:
         bboxes = [m.bounding_box for m in metadata_list]
 
         # Check co-registration: matching CRS and overlapping footprint
-        co_registered = True
+        co_registered = False
         if len(metadata_list) >= 2:
             base_crs = crs_list[0]
-            for c in crs_list[1:]:
-                if c != base_crs:
-                    co_registered = False
-                    break
+            if base_crs is not None and all(c == base_crs for c in crs_list[1:]):
+                if all(b is not None and len(b) == 4 for b in bboxes):
+                    base_b = bboxes[0]
+                    overlaps = True
+                    for b in bboxes[1:]:
+                        if not (base_b[0] < b[2] and base_b[2] > b[0] and
+                                base_b[1] < b[3] and base_b[3] > b[1]):
+                            overlaps = False
+                            break
+                    co_registered = overlaps
 
         input_audit = {
             "count": len(file_paths),
@@ -158,7 +165,7 @@ class AgenticTaskRouter:
             "formats": formats,
             "spatial_alignment": {
                 "co_registered": co_registered,
-                "crs": crs_list[0] if crs_list else "EPSG:4326",
+                "crs": crs_list[0] if (crs_list and crs_list[0]) else None,
                 "spatial_resolutions_m": resolutions,
                 "bounding_boxes": bboxes
             }
@@ -252,6 +259,7 @@ class AgenticTaskRouter:
         vector_layers: List[VectorFeature] = []
         text_response = ""
         confidence_score = 0.90
+        xai_explanation: Optional[XAIExplanation] = None
 
         # Step 4: Dynamic Specialist Dispatch
         if task_category in [TaskCategory.SINGLE_IMAGE_VQA, TaskCategory.SINGLE_IMAGE_CAPTIONING]:
@@ -272,6 +280,8 @@ class AgenticTaskRouter:
             })
             text_response = output["answer"]
             confidence_score = output["confidence"]
+            if "xai_explanation" in output:
+                xai_explanation = output["xai_explanation"]
 
         elif task_category == TaskCategory.TEXT_GUIDED_GROUNDING:
             grounding_tool: SpatialGroundingEngine = self.tool_registry.get("grounding_engine", SpatialGroundingEngine())
@@ -291,27 +301,31 @@ class AgenticTaskRouter:
             })
 
             # Affine Coordinate Projector Step
+            t_vec_start = time.perf_counter()
             vec_dict = output["vector_layer"]
-            pipeline_steps.append({
-                "step_number": len(pipeline_steps) + 1,
-                "tool_name": "AffineVectorProjector",
-                "parameters": {
-                    "layer_name": vec_dict["layer_name"],
-                    "crs": meta_list[0].crs if meta_list else "EPSG:4326"
-                },
-                "status": "SUCCESS",
-                "duration_ms": 12.5
-            })
-
-            vector_layers.append(VectorFeature(
+            vf = VectorFeature(
                 layer_name=vec_dict["layer_name"],
                 feature_type=vec_dict["feature_type"],
                 feature_count=vec_dict["feature_count"],
                 geojson=vec_dict["geojson"],
                 metrics=vec_dict["metrics"]
-            ))
+            )
+            vec_dur = round((time.perf_counter() - t_vec_start) * 1000.0, 2)
+            pipeline_steps.append({
+                "step_number": len(pipeline_steps) + 1,
+                "tool_name": "AffineVectorProjector",
+                "parameters": {
+                    "layer_name": vec_dict["layer_name"],
+                    "crs": meta_list[0].crs if meta_list else None
+                },
+                "status": "SUCCESS",
+                "duration_ms": max(0.1, vec_dur)
+            })
+            vector_layers.append(vf)
             text_response = output["answer"]
             confidence_score = output["confidence"]
+            if "xai_explanation" in output:
+                xai_explanation = output["xai_explanation"]
 
         elif task_category == TaskCategory.BI_TEMPORAL_CHANGE_DETECTION:
             change_tool: BiTemporalChangeEngine = self.tool_registry.get("change_engine", BiTemporalChangeEngine())
@@ -332,27 +346,31 @@ class AgenticTaskRouter:
                 "duration_ms": telemetry["duration_ms"]
             })
 
+            t_vec_start = time.perf_counter()
             vec_dict = output["vector_layer"]
-            pipeline_steps.append({
-                "step_number": len(pipeline_steps) + 1,
-                "tool_name": "AffineVectorProjector",
-                "parameters": {
-                    "layer_name": vec_dict["layer_name"],
-                    "crs": meta_list[0].crs if meta_list else "EPSG:4326"
-                },
-                "status": "SUCCESS",
-                "duration_ms": 14.2
-            })
-
-            vector_layers.append(VectorFeature(
+            vf = VectorFeature(
                 layer_name=vec_dict["layer_name"],
                 feature_type=vec_dict["feature_type"],
                 feature_count=vec_dict["feature_count"],
                 geojson=vec_dict["geojson"],
                 metrics=vec_dict["metrics"]
-            ))
+            )
+            vec_dur = round((time.perf_counter() - t_vec_start) * 1000.0, 2)
+            pipeline_steps.append({
+                "step_number": len(pipeline_steps) + 1,
+                "tool_name": "AffineVectorProjector",
+                "parameters": {
+                    "layer_name": vec_dict["layer_name"],
+                    "crs": meta_list[0].crs if meta_list else None
+                },
+                "status": "SUCCESS",
+                "duration_ms": max(0.1, vec_dur)
+            })
+            vector_layers.append(vf)
             text_response = output["answer"]
             confidence_score = output["confidence"]
+            if "xai_explanation" in output:
+                xai_explanation = output["xai_explanation"]
 
         elif task_category == TaskCategory.CROSS_MODAL_JOINT_ANALYSIS:
             fusion_tool: OpticalSARFusionEngine = self.tool_registry.get("fusion_engine", OpticalSARFusionEngine())
@@ -383,27 +401,34 @@ class AgenticTaskRouter:
                 "duration_ms": telemetry["duration_ms"]
             })
 
-            pipeline_steps.append({
-                "step_number": len(pipeline_steps) + 1,
-                "tool_name": "AffineVectorProjector",
-                "parameters": {
-                    "layers_count": len(output["vector_layers"]),
-                    "crs": meta_list[opt_idx].crs if meta_list else "EPSG:4326"
-                },
-                "status": "SUCCESS",
-                "duration_ms": 16.8
-            })
-
-            for vec_dict in output["vector_layers"]:
-                vector_layers.append(VectorFeature(
+            t_vec_start = time.perf_counter()
+            fused_features = [
+                VectorFeature(
                     layer_name=vec_dict["layer_name"],
                     feature_type=vec_dict["feature_type"],
                     feature_count=vec_dict["feature_count"],
                     geojson=vec_dict["geojson"],
                     metrics=vec_dict["metrics"]
-                ))
+                )
+                for vec_dict in output["vector_layers"]
+            ]
+            vec_dur = round((time.perf_counter() - t_vec_start) * 1000.0, 2)
+            pipeline_steps.append({
+                "step_number": len(pipeline_steps) + 1,
+                "tool_name": "AffineVectorProjector",
+                "parameters": {
+                    "layers_count": len(output["vector_layers"]),
+                    "crs": meta_list[opt_idx].crs if meta_list else None
+                },
+                "status": "SUCCESS",
+                "duration_ms": max(0.1, vec_dur)
+            })
+
+            vector_layers.extend(fused_features)
             text_response = output["answer"]
             confidence_score = output["confidence"]
+            if "xai_explanation" in output:
+                xai_explanation = output["xai_explanation"]
 
         else:
             text_response = "Unsupported task configuration."
@@ -451,5 +476,6 @@ class AgenticTaskRouter:
             vector_layers=vector_layers,
             confidence_score=confidence_score,
             execution_trace=trace,
-            validation=validation_info
+            validation=validation_info,
+            xai_explanation=xai_explanation
         )

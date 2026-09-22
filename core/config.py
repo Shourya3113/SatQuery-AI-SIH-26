@@ -38,5 +38,6 @@ PERMITTED_PARAMETERS = {
     "change_threshold": {"type": float, "min": 0.1, "max": 0.95, "default": 0.65},
     "max_tokens": {"type": int, "min": 16, "max": 512, "default": 128},
     "speckle_filter_kernel": {"type": int, "allowed": [3, 5, 7], "default": 5},
-    "target_crs": {"type": str, "default": "EPSG:4326"}
+    "target_crs": {"type": str, "default": "EPSG:4326"},
+    "include_xai": {"type": bool, "allowed": [True, False], "default": False}
 }

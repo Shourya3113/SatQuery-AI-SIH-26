@@ -47,31 +47,49 @@ def evaluate_benchmarks() -> dict:
     vrs_gt_mask = np.load(vrs_dir / "gt_mask_001.npy")
 
     t0 = time.time()
-    vrs_res = router.process_query(
-        query=vrs_ann["prompt"],
-        file_paths=[vrs_img_path]
-    )
-    vrs_latency = round((time.time() - t0) * 1000.0, 2)
-    total_latency += vrs_latency
+    try:
+        vrs_res = router.process_query(
+            query=vrs_ann["prompt"],
+            file_paths=[vrs_img_path]
+        )
+        vrs_latency = round((time.time() - t0) * 1000.0, 2)
+        total_latency += vrs_latency
 
-    # Reconstruct predicted mask from detected vector features
-    pred_mask = np.zeros_like(vrs_gt_mask)
-    if vrs_res.vector_layers:
-        vl = vrs_res.vector_layers[0]
-        # Bounded area calculation verification
-        pred_mask[20:45, 20:45] = 1 # Delineated region matches target geometry
+        # Reconstruct predicted mask directly from actual model vector features
+        pred_mask = np.zeros_like(vrs_gt_mask)
+        if vrs_res.vector_layers and vrs_res.vector_layers[0].geojson.get("features"):
+            import rasterio.features
+            geoms = [f["geometry"] for f in vrs_res.vector_layers[0].geojson["features"] if f.get("geometry")]
+            if geoms:
+                pred_mask = rasterio.features.rasterize(
+                    [(g, 1) for g in geoms],
+                    out_shape=vrs_gt_mask.shape,
+                    fill=0,
+                    dtype=np.uint8
+                )
 
-    vrs_iou = calculate_iou(pred_mask, vrs_gt_mask)
-    scorecard["benchmarks"]["VRSBench"] = {
-        "task": "Single-Image Text-Guided Region Grounding",
-        "metric": "mIoU (Jaccard Index)",
-        "score": round(vrs_iou, 4),
-        "target_baseline": 0.6500,
-        "status": "PASSED" if vrs_iou >= 0.65 else "FAILED",
-        "latency_ms": vrs_latency,
-        "selected_tool": vrs_res.execution_trace.selected_tool,
-        "details": f"Delineated {vrs_res.vector_layers[0].metrics.get('total_area_hectares', 2.25):.2f} ha" if vrs_res.vector_layers else "No layer"
-    }
+        vrs_iou = calculate_iou(pred_mask, vrs_gt_mask)
+        scorecard["benchmarks"]["VRSBench"] = {
+            "task": "Single-Image Text-Guided Region Grounding",
+            "metric": "mIoU (Jaccard Index)",
+            "score": round(vrs_iou, 4),
+            "target_baseline": 0.6500,
+            "status": "PASSED" if vrs_iou >= 0.65 else "FAILED",
+            "latency_ms": vrs_latency,
+            "selected_tool": vrs_res.execution_trace.selected_tool,
+            "details": f"Delineated {vrs_res.vector_layers[0].metrics.get('total_area_hectares', 0.0):.2f} ha" if vrs_res.vector_layers else "No layer"
+        }
+    except Exception as e:
+        vrs_iou = 0.0
+        scorecard["benchmarks"]["VRSBench"] = {
+            "task": "Single-Image Text-Guided Region Grounding",
+            "metric": "mIoU (Jaccard Index)",
+            "score": None,
+            "target_baseline": 0.6500,
+            "status": "NOT_RUN",
+            "latency_ms": 0.0,
+            "error": str(e)
+        }
 
     # -------------------------------------------------------------------------
     # 2. CDVQA (Bi-Temporal Change Understanding)
@@ -83,34 +101,56 @@ def evaluate_benchmarks() -> dict:
     cd_gt_mask = np.load(cd_dir / "gt_change_mask.npy")
 
     t0 = time.time()
-    cd_res = router.process_query(
-        query=cd_ann["question"],
-        file_paths=[t1_path, t2_path],
-        raw_params={"change_threshold": 0.50}
-    )
-    cd_latency = round((time.time() - t0) * 1000.0, 2)
-    total_latency += cd_latency
+    try:
+        cd_res = router.process_query(
+            query=cd_ann["question"],
+            file_paths=[t1_path, t2_path],
+            raw_params={"change_threshold": 0.50}
+        )
+        cd_latency = round((time.time() - t0) * 1000.0, 2)
+        total_latency += cd_latency
 
-    # Change detection evaluation
-    pred_cd_mask = np.zeros_like(cd_gt_mask)
-    pred_cd_mask[15:65, 15:65] = 1
-    pred_cd_mask[20:35, 20:35] = 0
+        # Reconstruct predicted change mask directly from actual pipeline vector features
+        pred_cd_mask = np.zeros_like(cd_gt_mask)
+        if cd_res.vector_layers and cd_res.vector_layers[0].geojson.get("features"):
+            import rasterio.features, rasterio
+            geoms = [f["geometry"] for f in cd_res.vector_layers[0].geojson["features"] if f.get("geometry")]
+            if geoms:
+                with rasterio.open(t1_path) as src:
+                    pred_cd_mask = rasterio.features.rasterize(
+                        [(g, 1) for g in geoms],
+                        out_shape=cd_gt_mask.shape,
+                        transform=src.transform,
+                        fill=0,
+                        dtype=np.uint8
+                    )
 
-    cd_f1 = calculate_f1_score(pred_cd_mask, cd_gt_mask)
-    cd_bleu = calculate_bleu(cd_res.text_response, cd_ann["reference_answer"], n_grams=2)
+        cd_f1 = calculate_f1_score(pred_cd_mask, cd_gt_mask)
+        cd_bleu = calculate_bleu(cd_res.text_response, cd_ann["reference_answer"], n_grams=2)
 
-    scorecard["benchmarks"]["CDVQA"] = {
-        "task": "Bi-Temporal Change Detection & CDVQA",
-        "metric": "F1-Score (Dice) & BLEU-2",
-        "f1_score": round(cd_f1, 4),
-        "bleu_score": round(cd_bleu, 4),
-        "score": round(cd_f1, 4),
-        "target_baseline": 0.7000,
-        "status": "PASSED" if cd_f1 >= 0.70 else "FAILED",
-        "latency_ms": cd_latency,
-        "selected_tool": cd_res.execution_trace.selected_tool,
-        "detected_change_percentage": cd_res.vector_layers[0].metrics.get("change_percentage", 15.2) if cd_res.vector_layers else 0.0
-    }
+        scorecard["benchmarks"]["CDVQA"] = {
+            "task": "Bi-Temporal Change Detection & CDVQA",
+            "metric": "F1-Score (Dice) & BLEU-2",
+            "f1_score": round(cd_f1, 4),
+            "bleu_score": round(cd_bleu, 4),
+            "score": round(cd_f1, 4),
+            "target_baseline": 0.7000,
+            "status": "PASSED" if cd_f1 >= 0.70 else "FAILED",
+            "latency_ms": cd_latency,
+            "selected_tool": cd_res.execution_trace.selected_tool,
+            "detected_change_percentage": cd_res.vector_layers[0].metrics.get("change_percentage", 0.0) if cd_res.vector_layers else 0.0
+        }
+    except Exception as e:
+        cd_f1 = 0.0
+        scorecard["benchmarks"]["CDVQA"] = {
+            "task": "Bi-Temporal Change Detection & CDVQA",
+            "metric": "F1-Score (Dice) & BLEU-2",
+            "score": None,
+            "target_baseline": 0.7000,
+            "status": "NOT_RUN",
+            "latency_ms": 0.0,
+            "error": str(e)
+        }
 
     # -------------------------------------------------------------------------
     # 3. RSVQA (Visual Question Answering)
@@ -122,31 +162,43 @@ def evaluate_benchmarks() -> dict:
     rsvqa_scores = []
     rsvqa_latencies = []
 
-    for qa in rsvqa_ann["qa_pairs"]:
-        t0 = time.time()
-        res = router.process_query(
-            query=qa["question"],
-            file_paths=[rsvqa_img]
-        )
-        lat = round((time.time() - t0) * 1000.0, 2)
-        rsvqa_latencies.append(lat)
-        total_latency += lat
+    try:
+        for qa in rsvqa_ann["qa_pairs"]:
+            t0 = time.time()
+            res = router.process_query(
+                query=qa["question"],
+                file_paths=[rsvqa_img]
+            )
+            lat = round((time.time() - t0) * 1000.0, 2)
+            rsvqa_latencies.append(lat)
+            total_latency += lat
 
-        # Compute BLEU against reference answer
-        bleu = calculate_bleu(res.text_response, qa["reference_answer"], n_grams=2)
-        rsvqa_scores.append(bleu)
+            # Compute BLEU against reference answer
+            bleu = calculate_bleu(res.text_response, qa["reference_answer"], n_grams=2)
+            rsvqa_scores.append(bleu)
 
-    mean_rsvqa_bleu = float(np.mean(rsvqa_scores)) if rsvqa_scores else 0.85
-    scorecard["benchmarks"]["RSVQA"] = {
-        "task": "Single-Image Remote Sensing VQA",
-        "metric": "Mean BLEU-2 Score",
-        "score": round(mean_rsvqa_bleu, 4),
-        "target_baseline": 0.5000,
-        "status": "PASSED" if mean_rsvqa_bleu >= 0.50 else "FAILED",
-        "latency_ms": round(float(np.mean(rsvqa_latencies)), 2),
-        "questions_evaluated": len(rsvqa_ann["qa_pairs"]),
-        "selected_tool": "RS-VQA-Engine"
-    }
+        mean_rsvqa_bleu = float(np.mean(rsvqa_scores)) if rsvqa_scores else 0.0
+        scorecard["benchmarks"]["RSVQA"] = {
+            "task": "Single-Image Remote Sensing VQA",
+            "metric": "Mean BLEU-2 Score",
+            "score": round(mean_rsvqa_bleu, 4),
+            "target_baseline": 0.5000,
+            "status": "PASSED" if mean_rsvqa_bleu >= 0.50 else "FAILED",
+            "latency_ms": round(float(np.mean(rsvqa_latencies)), 2) if rsvqa_latencies else 0.0,
+            "questions_evaluated": len(rsvqa_ann["qa_pairs"]),
+            "selected_tool": "RS-VQA-Engine"
+        }
+    except Exception as e:
+        mean_rsvqa_bleu = 0.0
+        scorecard["benchmarks"]["RSVQA"] = {
+            "task": "Single-Image Remote Sensing VQA",
+            "metric": "Mean BLEU-2 Score",
+            "score": None,
+            "target_baseline": 0.5000,
+            "status": "NOT_RUN",
+            "latency_ms": 0.0,
+            "error": str(e)
+        }
 
     # -------------------------------------------------------------------------
     # 4. BigEarthNet-MM (Cross-Modal Optical-SAR Fusion)
@@ -157,29 +209,41 @@ def evaluate_benchmarks() -> dict:
     s1_path = ben_dir / "s1_patch.tif"
 
     t0 = time.time()
-    ben_res = router.process_query(
-        query="Use optical and SAR together to detect built-up and water covered regions",
-        file_paths=[s2_path, s1_path]
-    )
-    ben_latency = round((time.time() - t0) * 1000.0, 2)
-    total_latency += ben_latency
+    try:
+        ben_res = router.process_query(
+            query="Use optical and SAR together to detect built-up and water covered regions",
+            file_paths=[s2_path, s1_path]
+        )
+        ben_latency = round((time.time() - t0) * 1000.0, 2)
+        total_latency += ben_latency
 
-    # Verification of multi-modal extraction
-    found_layers = [vl.layer_name for vl in ben_res.vector_layers]
-    has_water = any("water" in name for name in found_layers)
-    has_urban = any("built" in name for name in found_layers)
-    fusion_accuracy = 1.0 if (has_water and has_urban) else 0.5
+        # Verification of multi-modal extraction & cross-modal consistency
+        found_layers = [vl.layer_name for vl in ben_res.vector_layers]
+        has_water = any("water" in name for name in found_layers)
+        has_urban = any("built" in name for name in found_layers)
+        fusion_accuracy = round(ben_res.confidence_score, 4) if (has_water and has_urban) else 0.50
 
-    scorecard["benchmarks"]["BigEarthNet-MM"] = {
-        "task": "Optical-SAR Cross-Modal Joint Analysis",
-        "metric": "Cross-Modal Class Consistency",
-        "score": round(fusion_accuracy, 4),
-        "target_baseline": 0.8000,
-        "status": "PASSED" if fusion_accuracy >= 0.80 else "FAILED",
-        "latency_ms": ben_latency,
-        "selected_tool": ben_res.execution_trace.selected_tool,
-        "extracted_modalities": ["Sentinel-2 Optical (4-Band)", "Sentinel-1 SAR C-Band (VV)"]
-    }
+        scorecard["benchmarks"]["BigEarthNet-MM"] = {
+            "task": "Optical-SAR Cross-Modal Joint Analysis",
+            "metric": "Cross-Modal Class Consistency",
+            "score": round(fusion_accuracy, 4),
+            "target_baseline": 0.8000,
+            "status": "PASSED" if fusion_accuracy >= 0.80 else "FAILED",
+            "latency_ms": ben_latency,
+            "selected_tool": ben_res.execution_trace.selected_tool,
+            "extracted_modalities": ["Sentinel-2 Optical (4-Band)", "Sentinel-1 SAR C-Band (VV)"]
+        }
+    except Exception as e:
+        fusion_accuracy = 0.0
+        scorecard["benchmarks"]["BigEarthNet-MM"] = {
+            "task": "Optical-SAR Cross-Modal Joint Analysis",
+            "metric": "Cross-Modal Class Consistency",
+            "score": None,
+            "target_baseline": 0.8000,
+            "status": "NOT_RUN",
+            "latency_ms": 0.0,
+            "error": str(e)
+        }
 
     # -------------------------------------------------------------------------
     # Summary & Normalized Aggregate Score (ISRO SIH Judging Criteria)
@@ -195,7 +259,7 @@ def evaluate_benchmarks() -> dict:
         "total_benchmarks": 4,
         "passed_benchmarks": sum(1 for b in scorecard["benchmarks"].values() if b["status"] == "PASSED"),
         "total_evaluation_latency_ms": round(total_latency, 2),
-        "average_inference_time_s": round((total_latency / 6) / 1000.0, 3),
+        "average_inference_time_s": round((total_latency / 6) / 1000.0, 3) if total_latency > 0 else 0.0,
         "isro_guardrails_compliance": "100% (No Hallucinated Coordinates)"
     }
 

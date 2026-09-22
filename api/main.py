@@ -49,8 +49,14 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "*"
+    ],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -93,7 +99,6 @@ async def get_settings():
         "has_key": bool(key),
         "cesium_ion_token_masked": cesium_masked,
         "has_cesium_key": bool(cesium_token),
-        "cesium_ion_token": cesium_token
     }
 
 
@@ -151,6 +156,8 @@ async def list_sample_imagery():
 @app.get("/api/samples/{filename}")
 async def get_sample_file(filename: str):
     """Serves sample satellite imagery files directly to the client."""
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Invalid path traversal.")
     file_path = Path("data/samples") / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Sample file not found.")
@@ -240,7 +247,7 @@ async def get_benchmark_gallery():
                     "name": "Ground Truth Inundation Mask",
                     "file": "gt_change_mask.npy",
                     "preview_url": "/api/benchmarks/preview/cdvqa/gt_change_mask_preview.png",
-                    "metrics": "15.2% detected flood inundation (Red highlight), F1-Score: 1.0000",
+                    "metrics": "15.2% verified flood inundation mask (Red highlight)",
                     "type": "Change Mask"
                 }
             ]
@@ -265,7 +272,7 @@ async def get_benchmark_gallery():
                     "name": "Ground Truth Target Mask",
                     "file": "gt_mask_001.npy",
                     "preview_url": "/api/benchmarks/preview/vrsbench/gt_mask_001_preview.png",
-                    "metrics": "mIoU: 1.0000 (Target baseline: >= 0.65)",
+                    "metrics": "Target baseline: >= 0.65 mIoU",
                     "type": "Delineation Mask"
                 }
             ]
@@ -317,11 +324,12 @@ async def upload_rasters(files: List[UploadFile] = File(...)):
     """
     saved_files = []
     for f in files:
-        target_path = UPLOADS_DIR / f.filename
+        safe_filename = Path(f.filename).name
+        target_path = UPLOADS_DIR / safe_filename
         with open(target_path, "wb") as buffer:
             shutil.copyfileobj(f.file, buffer)
         saved_files.append({
-            "filename": f.filename,
+            "filename": safe_filename,
             "path": str(target_path),
             "size_bytes": target_path.stat().st_size
         })
@@ -358,7 +366,8 @@ async def process_query(
 
     saved_paths: List[Path] = []
     for f in uploaded_files:
-        target_path = UPLOADS_DIR / f.filename
+        safe_filename = Path(f.filename).name
+        target_path = UPLOADS_DIR / safe_filename
         with open(target_path, "wb") as buffer:
             shutil.copyfileobj(f.file, buffer)
         saved_paths.append(target_path)
@@ -407,6 +416,8 @@ async def get_execution_trace(trace_id: str):
     """
     Fetches the stored execution trace for a given trace ID.
     """
+    if ".." in trace_id or "/" in trace_id or "\\" in trace_id:
+        raise HTTPException(status_code=400, detail="Invalid trace ID.")
     trace = execution_traces.get(trace_id)
     if trace is None:
         raise HTTPException(
@@ -422,6 +433,8 @@ async def export_report(trace_id: str):
     Generates and returns an Intelligence Dossier PDF
     for a previously executed query using the stored QueryResponse.
     """
+    if ".." in trace_id or "/" in trace_id or "\\" in trace_id:
+        raise HTTPException(status_code=400, detail="Invalid trace ID.")
     query_response = stored_responses.get(trace_id)
 
     if query_response is None:
@@ -443,7 +456,8 @@ async def export_report(trace_id: str):
         )
 
     # Save PDF to outputs directory
-    report_path = str(OUTPUTS_DIR / f"{trace_id}_report.pdf")
+    safe_trace_id = Path(trace_id).name
+    report_path = str(OUTPUTS_DIR / f"{safe_trace_id}_report.pdf")
 
     # Generate the PDF dossier
     generate_report(query_response, report_path)
@@ -451,5 +465,5 @@ async def export_report(trace_id: str):
     return FileResponse(
         path=report_path,
         media_type="application/pdf",
-        filename=f"{trace_id}_report.pdf"
+        filename=f"{safe_trace_id}_report.pdf"
     )

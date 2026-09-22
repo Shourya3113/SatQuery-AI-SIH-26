@@ -184,7 +184,7 @@ export default function Globe3D() {
           outlineColor: Cesium.Color.WHITE,
           classificationType: Cesium.ClassificationType.BOTH
         },
-        description: 'Brahmaputra River Basin (Assam) — 15.2% detected monsoon flood inundation across 6.25 hectares (CDVQA Benchmark F1-Score: 1.0000).'
+        description: 'Brahmaputra River Basin (Assam) — 15.2% detected monsoon flood inundation across 6.25 hectares (CDVQA Benchmark Test Pair).'
       });
 
       // Layer C: Sundarbans Coastal Mangrove Optical+SAR Multimodal Footprint (West Bengal, India)
@@ -224,7 +224,7 @@ export default function Globe3D() {
           outlineColor: Cesium.Color.WHITE,
           classificationType: Cesium.ClassificationType.BOTH
         },
-        description: 'New Delhi Central Complex — 0.5m High-Resolution spatial grounding target building complex (VRSBench Benchmark mIoU: 1.0000).'
+        description: 'New Delhi Central Complex — 0.5m High-Resolution spatial grounding target building complex (Text-Guided Grounding Target).'
       });
 
       // 5. Handle incoming dynamic vector layers from Analysis page

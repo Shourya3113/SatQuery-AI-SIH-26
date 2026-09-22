@@ -80,8 +80,6 @@ class SpatialGroundingEngine(BaseSpecialistTool):
         confidence_thresh = parameters.get("confidence_threshold", 0.75)
         pixel_size_m = getattr(metadata, "spatial_resolution_m", 10.0) if metadata else 10.0
         bounds = getattr(metadata, "bounding_box", None) if metadata else None
-        if not bounds:
-            bounds = [77.10, 28.60, 77.25, 28.75]
 
         # Get image dimensions
         if isinstance(raster_data, np.ndarray) and raster_data.size > 0:
@@ -120,12 +118,6 @@ class SpatialGroundingEngine(BaseSpecialistTool):
             model_name = "FALLBACK-SPECTRAL-INDEX"
             backend = "spectral_heuristic_fallback"
 
-        # Ensure mask is not empty
-        if np.sum(binary_mask) == 0:
-            h_c, w_c = height // 2, width // 2
-            r = min(20, height // 4, width // 4)
-            binary_mask[h_c - r:h_c + r, w_c - r:w_c + r] = 1
-
         layer_name = f"grounding_{target_class}"
 
         # Convert to GeoJSON via affine projection
@@ -133,26 +125,26 @@ class SpatialGroundingEngine(BaseSpecialistTool):
             binary_mask=binary_mask,
             affine_transform=affine_transform,
             layer_name=layer_name,
-            pixel_size_m=pixel_size_m
+            pixel_size_m=pixel_size_m,
+            crs=getattr(metadata, "crs", None) if metadata else None
         )
-
-        # Fallback GeoJSON from bounding box if rasterio produced 0 features
-        if vector_result["feature_count"] == 0:
-            vector_result = self._build_fallback_geojson(
-                binary_mask, bounds, layer_name, target_class,
-                pixel_size_m, confidence_thresh
-            )
 
         total_area = vector_result["metrics"].get("total_area_hectares", 0.0)
         feature_count = vector_result["feature_count"]
 
-        # Confidence: use detection model confidence if available, else heuristic
-        final_confidence = det_confidence if det_confidence > 0 else min(0.60, confidence_thresh)
-
-        answer = (
-            f"Successfully delineated {feature_count} {target_class.replace('_', ' ')} region(s) "
-            f"covering an estimated {total_area:.2f} hectares using {model_name}."
-        )
+        # Confidence & answer synthesis: report actual detections without synthesizing fake boxes
+        if feature_count == 0:
+            final_confidence = 0.0 if np.sum(binary_mask) == 0 else min(0.30, confidence_thresh)
+            answer = (
+                f"No {target_class.replace('_', ' ')} regions detected within the scene "
+                f"matching the confidence criteria using {model_name}."
+            )
+        else:
+            final_confidence = det_confidence if det_confidence > 0 else min(0.60, confidence_thresh)
+            answer = (
+                f"Successfully delineated {feature_count} {target_class.replace('_', ' ')} region(s) "
+                f"covering an estimated {total_area:.2f} hectares using {model_name}."
+            )
 
         output = {
             "answer": answer,
@@ -162,6 +154,20 @@ class SpatialGroundingEngine(BaseSpecialistTool):
             "detected_boxes": detected_boxes,
             "vector_layer": vector_result,
         }
+
+        # RS-XAI Integration
+        if parameters.get("include_xai", False):
+            try:
+                from mlops.xai_engine import RSAIXEngine
+                xai_engine = RSAIXEngine()
+                output["xai_explanation"] = xai_engine.explain_spatial_grounding(
+                    raster_data=raster_data,
+                    binary_mask=binary_mask,
+                    target_class=target_class,
+                    confidence=final_confidence
+                )
+            except Exception as e:
+                logger.warning("Spatial grounding XAI generation failed: %s", e)
 
         telemetry = {
             "status": "SUCCESS",
@@ -207,12 +213,13 @@ class SpatialGroundingEngine(BaseSpecialistTool):
         with torch.no_grad():
             gdino_outputs = gdino_model(**gdino_inputs)
 
-        # Post-process: get boxes above threshold
+        # Post-process: get boxes above threshold (calibrated for remote sensing features)
+        effective_thresh = max(0.12, min(0.25, confidence_thresh * 0.35))
         results = gdino_processor.post_process_grounded_object_detection(
             gdino_outputs,
             gdino_inputs.input_ids,
-            threshold=max(0.15, confidence_thresh - 0.2),
-            text_threshold=max(0.15, confidence_thresh - 0.2),
+            threshold=effective_thresh,
+            text_threshold=effective_thresh,
             target_sizes=[(img_h, img_w)],
         )[0]
 
@@ -223,13 +230,27 @@ class SpatialGroundingEngine(BaseSpecialistTool):
             logger.info("Grounding DINO found 0 boxes for '%s'", grounding_text)
             return np.zeros((img_h, img_w), dtype=np.uint8), [], 0.0
 
-        logger.info("Grounding DINO found %d boxes (max conf: %.3f)", len(det_boxes), det_scores.max())
+        # Filter out whole-image background bounding boxes (> 75% of image area)
+        img_area = float(img_h * img_w)
+        valid_indices = [
+            idx for idx, b in enumerate(det_boxes)
+            if float((b[2] - b[0]) * (b[3] - b[1])) < 0.75 * img_area
+        ]
+
+        if not valid_indices:
+            logger.info("Grounding DINO: all candidate boxes covered whole-image background; using best box")
+            valid_indices = [int(np.argmax(det_scores))]
+
+        filtered_boxes = det_boxes[valid_indices]
+        filtered_scores = det_scores[valid_indices]
+
+        logger.info("Grounding DINO retained %d localized boxes (max conf: %.3f)", len(filtered_boxes), filtered_scores.max())
 
         # --- Stage 2: SAM segmentation ---
         sam_model, sam_processor = mgr.get_sam()
 
-        # Convert boxes to the format SAM expects: list of [x1, y1, x2, y2]
-        input_boxes = [det_boxes.tolist()]
+        # Convert boxes to the format SAM expects: list of list of [x1, y1, x2, y2]
+        input_boxes = [[b.tolist() for b in filtered_boxes]]
 
         sam_inputs = sam_processor(
             images=pil_image,
@@ -249,17 +270,17 @@ class SpatialGroundingEngine(BaseSpecialistTool):
 
         iou_scores = sam_outputs.iou_scores.cpu().numpy()[0]  # (N, 3)
 
-        # Merge all masks: for each box, take the mask with highest IoU score
+        # Merge masks: for each box, select highest IoU prediction
         combined_mask = np.zeros((img_h, img_w), dtype=np.uint8)
         for i in range(masks.shape[0]):
             best_idx = int(np.argmax(iou_scores[i]))
             mask_i = masks[i, best_idx].numpy().astype(np.uint8)
             combined_mask = np.maximum(combined_mask, mask_i)
 
-        avg_confidence = float(np.mean(det_scores))
+        avg_confidence = float(np.mean(filtered_scores))
         box_list = [
             {"box": b.tolist(), "score": float(s)}
-            for b, s in zip(det_boxes, det_scores)
+            for b, s in zip(filtered_boxes, filtered_scores)
         ]
 
         return combined_mask, box_list, avg_confidence
@@ -329,35 +350,3 @@ class SpatialGroundingEngine(BaseSpecialistTool):
             "target_features": "prominent feature . structure . distinct region",
         }
         return prompts.get(target_class, "prominent feature . distinct region")
-
-    @staticmethod
-    def _build_fallback_geojson(binary_mask, bounds, layer_name, target_class, pixel_size_m, confidence_thresh):
-        min_lon, min_lat, max_lon, max_lat = bounds
-        lon_span = max_lon - min_lon
-        lat_span = max_lat - min_lat
-        poly_box = box(
-            min_lon + 0.2 * lon_span, min_lat + 0.2 * lat_span,
-            min_lon + 0.6 * lon_span, min_lat + 0.6 * lat_span
-        )
-        area_ha = round(float(np.sum(binary_mask) * (pixel_size_m ** 2) / 10000.0), 2)
-        features = [{
-            "type": "Feature",
-            "properties": {
-                "layer": layer_name,
-                "target_class": target_class,
-                "area_hectares": area_ha,
-                "confidence": round(float(confidence_thresh), 3),
-            },
-            "geometry": mapping(poly_box),
-        }]
-        return {
-            "layer_name": layer_name,
-            "feature_type": "FeatureCollection",
-            "feature_count": 1,
-            "geojson": {"type": "FeatureCollection", "features": features},
-            "metrics": {
-                "total_pixel_count": int(np.sum(binary_mask)),
-                "total_area_hectares": area_ha,
-                "pixel_resolution_m": pixel_size_m,
-            },
-        }

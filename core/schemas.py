@@ -30,13 +30,13 @@ class InputImageMetadata(BaseModel):
     filename: str
     format: str  # GeoTIFF, TIFF, PNG, JPEG
     modality: ModalityType
-    crs: Optional[str] = "EPSG:4326"
+    crs: Optional[str] = None
     width: int
     height: int
     bands: int
     spatial_resolution_m: Optional[float] = 10.0
     bounding_box: Optional[List[float]] = None  # [min_lon, min_lat, max_lon, max_lat]
-    co_registered: bool = True
+    co_registered: bool = False
 
 
 class ToolExecutionStep(BaseModel):
@@ -53,6 +53,20 @@ class VectorFeature(BaseModel):
     feature_count: int
     geojson: Dict[str, Any]
     metrics: Dict[str, Any] = Field(default_factory=dict)  # area_hectares, change_percentage
+
+
+class XAIExplanation(BaseModel):
+    method: str
+    modality_attribution: Optional[Dict[str, float]] = None
+    spectral_sensitivity: Optional[Dict[str, float]] = None
+    physics_rationale: Optional[Dict[str, Any]] = None
+    heatmap_overlay_base64: Optional[str] = None
+    confidence: Optional[float] = None
+    faithfulness_metrics: Optional[Dict[str, float]] = None
+    runtime_ms: Optional[float] = None
+    hardware_tier: Optional[str] = None
+    limitations: Optional[List[str]] = Field(default_factory=list)
+    summary: str
 
 
 class AuditableExecutionTrace(BaseModel):
@@ -77,3 +91,4 @@ class QueryResponse(BaseModel):
     confidence_score: float
     execution_trace: AuditableExecutionTrace
     validation: Optional[Dict[str, Any]] = None
+    xai_explanation: Optional[XAIExplanation] = None

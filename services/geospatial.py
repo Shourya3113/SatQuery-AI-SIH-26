@@ -433,7 +433,7 @@ class GeospatialEngine:
 
         if ext in [".tif", ".tiff", ".geotiff"] and RASTERIO_AVAILABLE:
             with rasterio.open(p) as src:
-                crs_str = src.crs.to_string() if src.crs else "EPSG:4326"
+                crs_str = src.crs.to_string() if src.crs else None
                 bounds = [src.bounds.left, src.bounds.bottom, src.bounds.right, src.bounds.top]
                 width = src.width
                 height = src.height
@@ -462,7 +462,7 @@ class GeospatialEngine:
                     bands=bands,
                     spatial_resolution_m=spatial_resolution,
                     bounding_box=bounds,
-                    co_registered=True
+                    co_registered=False
                 )
                 return metadata, data, affine_transform
 
@@ -479,13 +479,13 @@ class GeospatialEngine:
                 filename=p.name,
                 format=ext.replace(".", "").upper(),
                 modality=ModalityType.BENCHMARK_IMAGE,
-                crs="EPSG:4326",
+                crs=None,
                 width=width,
                 height=height,
                 bands=bands,
                 spatial_resolution_m=10.0,
-                bounding_box=[77.10, 28.60, 77.25, 28.75],
-                co_registered=True
+                bounding_box=None,
+                co_registered=False
             )
             return metadata, data, None
 
@@ -511,25 +511,43 @@ class GeospatialEngine:
     @staticmethod
     def raster_mask_to_geojson(
         binary_mask: np.ndarray,
-        affine_transform: Any,
+        affine_transform: Any = None,
         layer_name: str = "detected_features",
-        pixel_size_m: float = 10.0
+        pixel_size_m: float = 10.0,
+        crs: Optional[str] = None
     ) -> Dict[str, Any]:
         """Converts a 2D binary numpy mask into a GeoJSON FeatureCollection."""
         features = []
         total_pixels = int(np.sum(binary_mask > 0))
         area_hectares = round((total_pixels * (pixel_size_m ** 2)) / 10000.0, 2)
 
-        if RASTERIO_AVAILABLE and affine_transform is not None:
+        if RASTERIO_AVAILABLE and total_pixels > 0:
             mask_uint8 = (binary_mask > 0).astype(np.uint8)
-            for geom, val in rio_shapes(mask_uint8, mask=(mask_uint8 == 1), transform=affine_transform):
+            if affine_transform is not None:
+                shapes_iter = rio_shapes(mask_uint8, mask=(mask_uint8 == 1), transform=affine_transform)
+            else:
+                shapes_iter = rio_shapes(mask_uint8, mask=(mask_uint8 == 1))
+
+            for geom, val in shapes_iter:
                 poly = shapely_shape(geom) if _HAVE_SHAPELY else None
                 if poly and poly.is_valid and poly.area > 0:
+                    if affine_transform is None:
+                        # Coordinates are in pixel units; poly.area is in pixels
+                        feat_area_ha = round((poly.area * (pixel_size_m ** 2)) / 10000.0, 4)
+                    else:
+                        # Coordinates are already projected via affine_transform
+                        if crs and ("4326" in str(crs) or "wgs" in str(crs).lower()):
+                            area_m2, _ = metric_area_m2(geom, crs=str(crs))
+                            feat_area_ha = round(area_m2 / 10000.0, 4)
+                        else:
+                            # Projected CRS in map units (metres, e.g. UTM) -> poly.area is already in m^2
+                            feat_area_ha = round(poly.area / 10000.0, 4)
+
                     features.append({
                         "type": "Feature",
                         "properties": {
                             "layer": layer_name,
-                            "area_hectares": round((poly.area * (pixel_size_m ** 2)) / 10000.0, 2)
+                            "area_hectares": feat_area_ha
                         },
                         "geometry": mapping(poly)
                     })
