@@ -18,6 +18,7 @@ from core.config import UPLOADS_DIR, OUTPUTS_DIR
 from core.schemas import QueryResponse, TaskCategory
 from services.orchestrator import AgenticTaskRouter
 from services.report_generator import generate_report
+from mlops.model_manager import ModelManager
 
 # In-memory stores for traces, full responses, and operational stats
 execution_traces: Dict[str, Dict[str, Any]] = {}
@@ -37,6 +38,7 @@ class SettingsUpdate(BaseModel):
 
 # Instantiate central Agentic Task Orchestrator
 orchestrator = AgenticTaskRouter()
+model_manager = ModelManager()
 
 app = FastAPI(
     title="SatQuery AI REST Gateway",
@@ -52,6 +54,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def preload_models():
+    """
+    Preload all specialist AI models at API startup.
+    """
+    print("[STARTUP] Preloading AI models...")
+
+    models = [
+        ("VQA", model_manager.get_vqa_model),
+        ("Grounding DINO", model_manager.get_grounding_dino),
+        ("SAM", model_manager.get_sam),
+        ("BigEarthNet Adapter", model_manager.get_bigearth_adapter),
+    ]
+
+    for name, loader in models:
+        try:
+            print(f"[STARTUP] Loading {name}...")
+            loader()
+            print(f"[STARTUP] {name} loaded successfully")
+        except Exception as e:
+            print(f"[STARTUP] Failed to load {name}: {e}")
+
+    print("[STARTUP] Model preload complete")
 
 @app.get("/api/health")
 async def health_check():
