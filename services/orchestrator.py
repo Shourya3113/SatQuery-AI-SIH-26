@@ -9,6 +9,8 @@ Strictly complies with ISRO SIH26167:
 - Observable Auditable JSON Execution Trace Synthesizer
 """
 
+import os
+import torch
 import uuid
 import time
 import datetime
@@ -32,6 +34,9 @@ from tools.spatial_grounding import SpatialGroundingEngine
 from tools.change_engine import BiTemporalChangeEngine
 from tools.fusion_engine import OpticalSARFusionEngine
 
+INFERENCE_TIMEOUT_SECONDS = int(
+    os.getenv("SATQUERY_INFERENCE_TIMEOUT", "120")
+)
 
 class AgenticTaskRouter:
     """
@@ -39,6 +44,64 @@ class AgenticTaskRouter:
     Coordinates input verification, intent classification, specialist tool invocation,
     parameter guardrails, and observable execution trace synthesis.
     """
+    def _handle_gpu_oom(self, tool_name: str) -> Dict[str, Any]:
+        """Release GPU memory after a model OOM and return a safe error payload."""
+        try:
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                torch.cuda.ipc_collect()
+        except Exception:
+            pass
+
+        return {
+        "status": "DEGRADED",
+        "error_type": "GPU_OUT_OF_MEMORY",
+        "tool_name": tool_name,
+        "message": (
+            f"{tool_name} could not complete because GPU memory was exhausted. "
+            "GPU cache was released; retry with a smaller workload or another device."
+        ),
+    }
+
+    def _run_tool_safely(self, tool, tool_name, tool_inputs, bounded_params):
+        """
+    Execute a specialist tool with GPU OOM and timeout protection.
+    """
+        try:
+            return tool.run_with_telemetry(tool_inputs, bounded_params)
+
+        except torch.cuda.OutOfMemoryError:
+            return (
+            {
+                "status": "DEGRADED",
+                "error_type": "GPU_OUT_OF_MEMORY",
+                "tool_name": tool_name,
+                "message": (
+                    f"{tool_name} ran out of GPU memory. "
+                    "GPU cache was released. Retry with a smaller workload."
+                ),
+            },
+            {
+                "tool": tool_name,
+                "status": "DEGRADED",
+                "error": "GPU_OUT_OF_MEMORY",
+            },
+        )
+
+        except TimeoutError:
+            return (
+            {
+                "status": "DEGRADED",
+                "error_type": "TIMEOUT",
+                "tool_name": tool_name,
+                "message": f"{tool_name} exceeded the inference time limit.",
+            },
+            {
+                "tool": tool_name,
+                "status": "DEGRADED",
+                "error": "TIMEOUT",
+            },
+        )
 
     def __init__(self, tool_registry: Optional[Dict[str, Any]] = None):
         if tool_registry is not None:
@@ -283,6 +346,7 @@ class AgenticTaskRouter:
         6. Emits observable AuditableExecutionTrace and QueryResponse.
         """
         start_pipeline = time.time()
+        deadline = start_pipeline + INFERENCE_TIMEOUT_SECONDS
         trace_id = f"satquery-exec-{uuid.uuid4().hex[:8]}"
         pipeline_steps: List[Dict[str, Any]] = []
 
@@ -343,11 +407,16 @@ class AgenticTaskRouter:
                 "raster_data": rasters_list[0] if rasters_list else None,
                 "task_category": task_category
             }
-
-            output, telemetry = vqa_tool.run_with_telemetry(
+            if time.time() > deadline:
+                raise TimeoutError(
+                f"Inference exceeded {INFERENCE_TIMEOUT_SECONDS} seconds"
+            )
+            output, telemetry = self._run_tool_safely(
+                vqa_tool,
+                "vqa_engine",
                 tool_inputs,
                 bounded_params
-            )
+        )
 
             pipeline_steps.append({
                 "step_number": len(pipeline_steps) + 1,
@@ -376,8 +445,13 @@ class AgenticTaskRouter:
                     else None
                 )
             }
-
-            output, telemetry = grounding_tool.run_with_telemetry(
+            if time.time() > deadline:
+                    raise TimeoutError(
+                    f"Inference exceeded {INFERENCE_TIMEOUT_SECONDS} seconds"
+                )
+            output, telemetry = self._run_tool_safely(
+                grounding_tool,
+                "grounding_engine",
                 tool_inputs,
                 bounded_params
             )
@@ -463,11 +537,16 @@ class AgenticTaskRouter:
                     else None
                 )
             }
-
-            output, telemetry = change_tool.run_with_telemetry(
+            if time.time() > deadline:
+                raise TimeoutError(
+                f"Inference exceeded {INFERENCE_TIMEOUT_SECONDS} seconds"
+            )
+            output, telemetry = self._run_tool_safely(
+                change_tool,
+                "change_engine",
                 tool_inputs,
                 bounded_params
-            )
+        )
 
             pipeline_steps.append({
                 "step_number": len(pipeline_steps) + 1,
@@ -551,11 +630,16 @@ class AgenticTaskRouter:
                     else None
                 )
             }
-
-            output, telemetry = fusion_tool.run_with_telemetry(
+            if time.time() > deadline:
+                raise TimeoutError(
+                f"Inference exceeded {INFERENCE_TIMEOUT_SECONDS} seconds"
+            )
+            output, telemetry = self._run_tool_safely(
+                fusion_tool,
+                "fusion_engine",
                 tool_inputs,
                 bounded_params
-            )
+        )
 
             pipeline_steps.append({
                 "step_number": len(pipeline_steps) + 1,

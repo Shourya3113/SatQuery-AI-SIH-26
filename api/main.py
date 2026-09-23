@@ -57,18 +57,40 @@ app.add_middleware(
 @app.on_event("startup")
 async def preload_models():
     """
-    Preload all specialist AI models at API startup.
+    Preload selected specialist AI models at API startup.
+
+    Configure with PRELOAD_MODELS:
+    - all
+    - vqa,grounding
+    - none
     """
-    print("[STARTUP] Preloading AI models...")
+    preload_config = os.getenv("PRELOAD_MODELS", "all").strip().lower()
 
-    models = [
-        ("VQA", model_manager.get_vqa_model),
-        ("Grounding DINO", model_manager.get_grounding_dino),
-        ("SAM", model_manager.get_sam),
-        ("BigEarthNet Adapter", model_manager.get_bigearth_adapter),
-    ]
+    model_loaders = {
+        "vqa": ("VQA", model_manager.get_vqa_model),
+        "grounding": ("Grounding DINO", model_manager.get_grounding_dino),
+        "sam": ("SAM", model_manager.get_sam),
+        "bigearth": ("BigEarthNet Adapter", model_manager.get_bigearth_adapter),
+    }
 
-    for name, loader in models:
+    if preload_config == "none":
+        print("[STARTUP] Model preload disabled")
+        return
+
+    if preload_config == "all":
+        selected_models = list(model_loaders.keys())
+    else:
+        selected_models = [
+            name.strip()
+            for name in preload_config.split(",")
+            if name.strip() in model_loaders
+        ]
+
+    print(f"[STARTUP] Preloading models: {selected_models}")
+
+    for key in selected_models:
+        name, loader = model_loaders[key]
+
         try:
             print(f"[STARTUP] Loading {name}...")
             loader()
@@ -422,6 +444,8 @@ async def process_query(
     saved_paths: List[Path] = []
 
     for f in uploaded_files:
+        await f.seek(0)
+
         target_path = UPLOADS_DIR / f.filename
 
         step_start = time.perf_counter()
@@ -434,12 +458,6 @@ async def process_query(
             2
         )
 
-        saved_paths.append(target_path)
-    saved_paths: List[Path] = []
-    for f in uploaded_files:
-        target_path = UPLOADS_DIR / f.filename
-        with open(target_path, "wb") as buffer:
-            shutil.copyfileobj(f.file, buffer)
         saved_paths.append(target_path)
 
     # Assemble raw parameter dictionary
@@ -460,6 +478,13 @@ async def process_query(
             file_paths=saved_paths,
             raw_params=raw_params
         )
+    except TimeoutError as e:
+        stats_store["total_processed"] += 1
+        raise HTTPException(
+            status_code=504,
+            detail=str(e)
+        )
+
     except Exception as e:
         stats_store["total_processed"] += 1
         raise HTTPException(
