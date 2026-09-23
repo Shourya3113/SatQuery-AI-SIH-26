@@ -370,3 +370,49 @@ class TestOrchestratorXAIIntegration:
         assert res.xai_explanation is not None
         assert isinstance(res.xai_explanation, XAIExplanation)
         assert res.xai_explanation.heatmap_overlay_base64.startswith("data:image/png;base64,")
+
+    def test_orchestrator_vqa_with_xai(self, tmp_path):
+        from PIL import Image
+        from services.orchestrator import AgenticTaskRouter
+
+        vqa_file = tmp_path / "vqa_scene.png"
+        Image.new("RGB", (64, 64), color=(70, 140, 50)).save(vqa_file)
+
+        router = AgenticTaskRouter()
+        res = router.process_query(
+            query="What is the dominant land cover class present in this scene?",
+            file_paths=[vqa_file],
+            raw_params={"include_xai": True}
+        )
+
+        assert res.xai_explanation is not None
+        assert isinstance(res.xai_explanation, XAIExplanation)
+        assert res.xai_explanation.status == "full"
+        assert res.xai_explanation.method == "Visual Token Energy Saliency"
+        assert res.xai_explanation.heatmap_overlay_base64.startswith("data:image/png;base64,")
+
+    def test_rsaix_fallback_handling(self):
+        engine = RSAIXEngine()
+        fallback_exp = engine.explain_fallback(
+            reason="Synthetic stress test fallback condition",
+            available_methods=["Physics-Scattering"],
+            unavailable_methods=["Patch-Energy-Saliency"]
+        )
+
+        assert isinstance(fallback_exp, XAIExplanation)
+        assert fallback_exp.status == "partial"
+        assert "Physics-Scattering" in fallback_exp.available_methods
+        assert "Patch-Energy-Saliency" in fallback_exp.unavailable_methods
+        assert fallback_exp.fallback_reason == "Synthetic stress test fallback condition"
+
+    def test_localization_metrics(self):
+        sal = np.zeros((64, 64), dtype=np.float32)
+        sal[20:30, 20:30] = 1.0  # concentrated peak
+
+        gt = np.zeros((64, 64), dtype=np.uint8)
+        gt[15:35, 15:35] = 1
+
+        metrics = PolygonMaskedOverlayBuilder.compute_localization_metrics(sal, gt)
+        assert metrics["pointing_game_hit"] == 1.0
+        assert metrics["energy_in_mask_ratio"] == 1.0
+        assert metrics["saliency_mask_iou"] > 0.0

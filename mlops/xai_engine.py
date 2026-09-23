@@ -552,6 +552,48 @@ class PolygonMaskedOverlayBuilder:
 
         return f"data:image/png;base64,{b64_str}"
 
+    @staticmethod
+    def compute_localization_metrics(
+        saliency_map: np.ndarray,
+        binary_mask: np.ndarray
+    ) -> Dict[str, float]:
+        """
+        Calculates spatial localization faithfulness metrics:
+        1. Pointing Game Hit: Indicator if argmax(saliency) is within the ground-truth mask.
+        2. Energy-in-Mask Ratio (EIMR): Sum of saliency energy within mask over total energy.
+        3. Adaptive Saliency IoU: Intersection over Union of top-20% salient pixels vs mask.
+        """
+        sal = np.asarray(saliency_map, dtype=np.float32)
+        mask = np.asarray(binary_mask, dtype=bool)
+
+        if sal.shape != mask.shape:
+            return {
+                "pointing_game_hit": 0.0,
+                "energy_in_mask_ratio": 0.0,
+                "saliency_mask_iou": 0.0
+            }
+
+        total_energy = float(np.sum(sal)) + 1e-7
+        mask_energy = float(np.sum(sal[mask]))
+        eimr = round(mask_energy / total_energy, 4)
+
+        # Pointing game
+        max_idx = np.unravel_index(np.argmax(sal), sal.shape)
+        hit = 1.0 if mask[max_idx] else 0.0
+
+        # Adaptive IoU (top 20% salient pixels)
+        p80 = float(np.percentile(sal, 80))
+        sal_bin = sal >= p80
+        inter = float(np.logical_and(sal_bin, mask).sum())
+        union = float(np.logical_or(sal_bin, mask).sum())
+        iou = round(inter / (union + 1e-7), 4)
+
+        return {
+            "pointing_game_hit": hit,
+            "energy_in_mask_ratio": eimr,
+            "saliency_mask_iou": iou
+        }
+
 
 # ==============================================================================
 # 5. RS-XAI Unified Engine
@@ -638,8 +680,15 @@ class RSAIXEngine:
             f"with mean {sar_physics['mean_sigma0_db']} dB."
         )
 
+        loc_metrics = None
+        if feature_mask is not None:
+            loc_metrics = PolygonMaskedOverlayBuilder.compute_localization_metrics(heatmap, feature_mask)
+
         return XAIExplanation(
             method="Hybrid Shapley-Physics Cross-Modal Attribution",
+            status="full",
+            available_methods=["Analytical-Shapley", "Physics-Scattering", "Patch-Energy-Saliency"],
+            unavailable_methods=[],
             modality_attribution=shapley_res["attribution"],
             spectral_sensitivity=spectral_sens,
             physics_rationale=sar_physics,
@@ -649,6 +698,7 @@ class RSAIXEngine:
                 "shapley_efficiency_error": shapley_res["efficiency_error"],
                 "coalition_monotonicity": 1.0 if v_joint >= max(v_opt, v_sar) else 0.0,
             },
+            localization_metrics=loc_metrics,
             runtime_ms=elapsed_ms,
             hardware_tier=f"{dev_name} (Zero-VRAM Gradient-Free)",
             limitations=[
@@ -699,6 +749,9 @@ class RSAIXEngine:
             except Exception:
                 pass
 
+        # 3. Localization metrics
+        loc_metrics = PolygonMaskedOverlayBuilder.compute_localization_metrics(heatmap, binary_mask)
+
         elapsed_ms = round((time.perf_counter() - t0) * 1000.0, 2)
         dev_name = self.gpu_mgr.get_device_name()
 
@@ -707,14 +760,22 @@ class RSAIXEngine:
             f"Delineated region encompasses {int(np.sum(binary_mask))} target pixels at {confidence:.2f} confidence."
         )
 
+        available = ["Patch-Energy-Saliency", "Spatial-Masking"]
+        if spectral_sens:
+            available.append("Physics-Scattering")
+
         return XAIExplanation(
             method="Token Energy Patch Saliency & Spectral Partial Derivatives",
+            status="full",
+            available_methods=available,
+            unavailable_methods=[],
             modality_attribution={"optical": 1.0},
             spectral_sensitivity=spectral_sens,
             physics_rationale={"target_class": target_class, "pixel_support": int(np.sum(binary_mask))},
             heatmap_overlay_base64=overlay_b64,
             confidence=round(float(confidence), 3),
             faithfulness_metrics={"spatial_intersection_score": 1.0},
+            localization_metrics=loc_metrics,
             runtime_ms=elapsed_ms,
             hardware_tier=f"{dev_name} (Zero-VRAM Gradient-Free)",
             limitations=[
@@ -742,6 +803,9 @@ class RSAIXEngine:
         summary = f"Visual reasoning for query '{query}' grounded via spatial token energy saliency."
         return XAIExplanation(
             method="Visual Token Energy Saliency",
+            status="full",
+            available_methods=["Patch-Energy-Saliency"],
+            unavailable_methods=[],
             modality_attribution={"optical": 1.0},
             heatmap_overlay_base64=overlay_b64,
             confidence=round(float(confidence), 3),
@@ -772,6 +836,9 @@ class RSAIXEngine:
             binary_mask=change_mask,
             colormap="magma"
         )
+
+        loc_metrics = PolygonMaskedOverlayBuilder.compute_localization_metrics(heatmap, change_mask)
+
         elapsed_ms = round((time.perf_counter() - t0) * 1000.0, 2)
         dev_name = self.gpu_mgr.get_device_name()
         summary = (
@@ -780,11 +847,40 @@ class RSAIXEngine:
         )
         return XAIExplanation(
             method="Differential Radiometric Energy Decomposition",
+            status="full",
+            available_methods=["Differential-Radiometric-Energy", "Morphological-Filtering"],
+            unavailable_methods=[],
             modality_attribution={"temporal_t1": 0.50, "temporal_t2": 0.50},
             physics_rationale={"surface_change_percentage": round(float(change_pct), 2)},
             heatmap_overlay_base64=overlay_b64,
             confidence=round(float(confidence), 3),
+            localization_metrics=loc_metrics,
             runtime_ms=elapsed_ms,
             hardware_tier=f"{dev_name} (Zero-VRAM Gradient-Free)",
             summary=summary
+        )
+
+    def explain_fallback(
+        self,
+        reason: str,
+        available_methods: Optional[List[str]] = None,
+        unavailable_methods: Optional[List[str]] = None,
+        summary: Optional[str] = None
+    ) -> XAIExplanation:
+        """Structured partial or fallback explanation when primary XAI modules are unavailable."""
+        dev_name = self.gpu_mgr.get_device_name()
+        avail = available_methods or []
+        unavail = unavailable_methods or ["Patch-Energy-Saliency", "Analytical-Shapley"]
+        msg = summary or f"Partial explanation: {reason}"
+        return XAIExplanation(
+            method="Graceful Fallback Explanation",
+            status="fallback" if not avail else "partial",
+            available_methods=avail,
+            unavailable_methods=unavail,
+            fallback_reason=reason,
+            confidence=0.50,
+            runtime_ms=0.5,
+            hardware_tier=f"{dev_name} (Zero-VRAM Gradient-Free)",
+            limitations=[reason, "Operating under constrained fallback mode."],
+            summary=msg
         )

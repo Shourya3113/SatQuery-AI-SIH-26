@@ -57,12 +57,17 @@ class VectorFeature(BaseModel):
 
 class XAIExplanation(BaseModel):
     method: str
+    status: str = "full"  # "full", "partial", "fallback"
+    available_methods: List[str] = Field(default_factory=list)
+    unavailable_methods: List[str] = Field(default_factory=list)
+    fallback_reason: Optional[str] = None
     modality_attribution: Optional[Dict[str, float]] = None
     spectral_sensitivity: Optional[Dict[str, float]] = None
     physics_rationale: Optional[Dict[str, Any]] = None
     heatmap_overlay_base64: Optional[str] = None
     confidence: Optional[float] = None
     faithfulness_metrics: Optional[Dict[str, float]] = None
+    localization_metrics: Optional[Dict[str, float]] = None  # Pointing game hit rate, energy-in-mask ratio
     runtime_ms: Optional[float] = None
     hardware_tier: Optional[str] = None
     limitations: Optional[List[str]] = Field(default_factory=list)

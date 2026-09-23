@@ -235,6 +235,16 @@ def run_full_benchmark(n_permutations: int = 5, steps: int = 5) -> dict:
         seed=42
     )
 
+    # 4. 5-Stage Ablation Matrix & Baselines Comparison
+    from benchmarks.ablation import XAIAblationEngine
+    ablation_matrix = XAIAblationEngine.run_ablation_matrix(
+        optical_raster=s2_data[:3],
+        sar_raster=s1_data[0]
+    )
+    baselines_comp = XAIAblationEngine.run_baselines_comparison(
+        raster=s2_data[:3]
+    )
+
     total_latency_ms = round((time.time() - t0_total) * 1000.0, 2)
 
     all_physics_pass = bool(ndwi_physics["physically_consistent"] and ndvi_physics["physically_consistent"])
@@ -263,6 +273,8 @@ def run_full_benchmark(n_permutations: int = 5, steps: int = 5) -> dict:
                 "optical_contribution_pct": round(sum(pfi_multimodal["normalized_weights"][k] for k in ["B02_Blue", "B03_Green", "B04_Red", "B08_NIR"]) * 100.0, 2)
             }
         },
+        "ablation_study": ablation_matrix,
+        "baselines_comparison": baselines_comp,
         "summary": {
             "physics_consistency_status": "PASSED" if all_physics_pass else "FAILED",
             "aopc_faithfulness_status": "PASSED" if all_aopc_pass else "FAILED",

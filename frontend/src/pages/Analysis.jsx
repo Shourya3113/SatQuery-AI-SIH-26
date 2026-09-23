@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { UploadCloud, FileImage, X, Loader2, Send, Database, Info, Code2, FileDown, CheckCircle2, Layers, Sparkles, Globe, Eye, ShieldCheck } from 'lucide-react';
 import { API_BASE } from '../config';
+import ExplainabilityHUD from '../components/ExplainabilityHUD';
 
 export default function Analysis() {
   const navigate = useNavigate();
@@ -360,150 +361,11 @@ export default function Analysis() {
 
             {/* RS-XAI Explainability Card */}
             {result.xai_explanation && (
-              <div className="bg-white border border-indigo-100 p-5 rounded-xl shadow-sm border-l-4 border-l-indigo-600 space-y-4">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-indigo-600" />
-                    <h3 className="text-xs uppercase tracking-wider text-indigo-900 font-bold">
-                      Visual Evidence & Explainability (RS-XAI)
-                    </h3>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {result.xai_explanation.runtime_ms !== undefined && (
-                      <span className="text-[10px] font-mono bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded">
-                        {result.xai_explanation.runtime_ms.toFixed(1)} ms
-                      </span>
-                    )}
-                    <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded flex items-center gap-1">
-                      <ShieldCheck className="w-3 h-3" /> Zero-VRAM Saliency
-                    </span>
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg text-xs text-slate-700 leading-relaxed font-medium">
-                  {result.xai_explanation.summary}
-                </div>
-
-                {/* Modality Attribution (Shapley) */}
-                {result.xai_explanation.modality_attribution && (
-                  <div className="space-y-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
-                    <div className="flex justify-between items-center text-xs font-semibold text-slate-700">
-                      <span>Modality Reliance (2-Player Shapley)</span>
-                      <span className="font-mono text-[11px] text-slate-500">Exact Closed-Form</span>
-                    </div>
-                    {/* Attribution Bar */}
-                    <div className="h-5 w-full bg-slate-200 rounded-full overflow-hidden flex text-[10px] font-bold text-white leading-5 text-center">
-                      {result.xai_explanation.modality_attribution.optical !== undefined && (
-                        <div
-                          style={{ width: `${(result.xai_explanation.modality_attribution.optical * 100).toFixed(1)}%` }}
-                          className="bg-blue-600 flex items-center justify-center transition-all duration-500 truncate px-1"
-                          title={`Optical: ${(result.xai_explanation.modality_attribution.optical * 100).toFixed(1)}%`}
-                        >
-                          Optical {(result.xai_explanation.modality_attribution.optical * 100).toFixed(0)}%
-                        </div>
-                      )}
-                      {result.xai_explanation.modality_attribution.sar !== undefined && (
-                        <div
-                          style={{ width: `${(result.xai_explanation.modality_attribution.sar * 100).toFixed(1)}%` }}
-                          className="bg-amber-600 flex items-center justify-center transition-all duration-500 truncate px-1"
-                          title={`SAR C-Band: ${(result.xai_explanation.modality_attribution.sar * 100).toFixed(1)}%`}
-                        >
-                          SAR {(result.xai_explanation.modality_attribution.sar * 100).toFixed(0)}%
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-slate-500 italic">
-                      Model-internal feature attribution across combinatorial coalitions; not direct causal proof.
-                    </p>
-                  </div>
-                )}
-
-                {/* Physics Microwave Scattering */}
-                {result.xai_explanation.physics_rationale?.scattering_distribution_pct && (
-                  <div className="space-y-1.5">
-                    <span className="text-[11px] uppercase tracking-wider text-slate-600 font-semibold block">
-                      Microwave Backscatter Regimes (C-Band σ⁰)
-                    </span>
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="bg-sky-50 border border-sky-200 p-2.5 rounded-lg">
-                        <span className="text-[10px] text-sky-700 font-medium block">Surface / Specular</span>
-                        <span className="text-sm font-bold text-sky-900 font-mono">
-                          {result.xai_explanation.physics_rationale.scattering_distribution_pct.surface_specular_pct}%
-                        </span>
-                        <span className="text-[9px] text-sky-600 block">&lt; -16 dB (Water)</span>
-                      </div>
-                      <div className="bg-emerald-50 border border-emerald-200 p-2.5 rounded-lg">
-                        <span className="text-[10px] text-emerald-700 font-medium block">Volume Canopy</span>
-                        <span className="text-sm font-bold text-emerald-900 font-mono">
-                          {result.xai_explanation.physics_rationale.scattering_distribution_pct.volume_canopy_pct}%
-                        </span>
-                        <span className="text-[9px] text-emerald-600 block">[-16, -6] dB</span>
-                      </div>
-                      <div className="bg-purple-50 border border-purple-200 p-2.5 rounded-lg">
-                        <span className="text-[10px] text-purple-700 font-medium block">Double-Bounce</span>
-                        <span className="text-sm font-bold text-purple-900 font-mono">
-                          {result.xai_explanation.physics_rationale.scattering_distribution_pct.double_bounce_urban_pct}%
-                        </span>
-                        <span className="text-[9px] text-purple-600 block">&gt; -6 dB (Urban)</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Spectral Sensitivities */}
-                {result.xai_explanation.spectral_sensitivity && (
-                  <div className="space-y-1.5">
-                    <span className="text-[11px] uppercase tracking-wider text-slate-600 font-semibold block">
-                      Analytical Spectral Sensitivities (∂Index/∂Band)
-                    </span>
-                    <div className="flex flex-wrap gap-2">
-                      {Object.entries(result.xai_explanation.spectral_sensitivity).map(([band, val], idx) => (
-                        <div key={idx} className="bg-slate-100 border border-slate-200 px-2.5 py-1 rounded text-xs flex items-center gap-1.5 font-mono text-slate-800">
-                          <span className="text-slate-500 font-sans capitalize">{band.replace('_', ' ')}:</span>
-                          <span className="font-bold text-indigo-700">{(val * 100).toFixed(1)}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Interactive Saliency Overlay & Opacity Slider */}
-                {result.xai_explanation.heatmap_overlay_base64 && (
-                  <div className="space-y-2 bg-slate-900 p-3.5 rounded-xl border border-slate-800 text-white">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold flex items-center gap-1.5 text-slate-200">
-                        <Eye className="w-3.5 h-3.5 text-indigo-400" /> Saliency Heatmap Overlay
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-slate-400">Opacity: {overlayOpacity}%</span>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={overlayOpacity}
-                          onChange={(e) => setOverlayOpacity(Number(e.target.value))}
-                          className="w-24 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                        />
-                      </div>
-                    </div>
-                    <div className="relative rounded-lg overflow-hidden border border-slate-700 aspect-video max-h-56 flex items-center justify-center bg-black">
-                      <img
-                        src={result.xai_explanation.heatmap_overlay_base64}
-                        alt="Saliency Heatmap"
-                        style={{ opacity: overlayOpacity / 100 }}
-                        className="w-full h-full object-contain transition-opacity duration-150"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Limitations Caveat */}
-                {result.xai_explanation.limitations?.length > 0 && (
-                  <div className="text-[10px] text-slate-500 italic bg-amber-50/60 p-2.5 rounded border border-amber-200/50">
-                    <b>Scientific Caveats:</b> {result.xai_explanation.limitations.join(' • ')}
-                  </div>
-                )}
-              </div>
+              <ExplainabilityHUD
+                explanation={result.xai_explanation}
+                overlayOpacity={overlayOpacity}
+                setOverlayOpacity={setOverlayOpacity}
+              />
             )}
 
             {/* Execution Trace */}

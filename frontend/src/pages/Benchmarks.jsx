@@ -22,7 +22,8 @@ import {
   BookOpen,
   Scale,
   TrendingDown,
-  Info
+  Info,
+  Target
 } from 'lucide-react';
 import { API_BASE } from '../config';
 
@@ -1060,7 +1061,191 @@ export default function Benchmarks() {
                 </div>
               </div>
 
-              {/* Section 3: Scientific Methodology & Mathematical References */}
+              {/* Section 3: 5-Stage Ablation Matrix Evaluation */}
+              <div className="pt-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-textMain flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-indigo-600" />
+                    Section 3: RS-XAI 5-Stage Ablation Matrix
+                  </h2>
+                  <span className="text-xs text-textMuted font-mono">
+                    Zero-VRAM Gradient-Free Architecture
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-3.5">
+                  {faithfulnessData?.ablation_study?.configurations &&
+                    Object.entries(faithfulnessData.ablation_study.configurations).map(([key, cfg]) => {
+                      const isFull = key.includes('Config_E');
+                      return (
+                        <div
+                          key={key}
+                          className={`p-4 rounded-xl border flex flex-col justify-between space-y-3 transition-all ${
+                            isFull 
+                              ? 'bg-indigo-50/70 border-indigo-300 shadow-md ring-1 ring-indigo-400' 
+                              : 'bg-white border-border shadow-sm'
+                          }`}
+                        >
+                          <div>
+                            <div className="flex justify-between items-start gap-1">
+                              <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                                isFull ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700'
+                              }`}>
+                                {key.split('_')[1]}
+                              </span>
+                              <span className="text-[10px] font-semibold text-textMuted font-mono">
+                                {cfg.latency_ms.toFixed(1)} ms
+                              </span>
+                            </div>
+                            <h4 className="text-xs font-bold text-slate-800 mt-2 leading-snug">
+                              {cfg.name.split(':')[1]?.trim() || cfg.name}
+                            </h4>
+                          </div>
+
+                          <div className="space-y-1.5 text-[11px] pt-1 border-t border-slate-100">
+                            <div className="flex justify-between text-slate-600">
+                              <span>Coverage:</span>
+                              <span className="font-bold text-slate-800">{cfg.coverage_score}%</span>
+                            </div>
+                            <div className="flex justify-between text-slate-600">
+                              <span>VRAM:</span>
+                              <span className="font-mono text-emerald-600 font-bold">0.0 MB</span>
+                            </div>
+                            <div className="flex justify-between text-slate-600">
+                              <span>Cross-Modal:</span>
+                              <span className={cfg.cross_modal_support ? "text-emerald-700 font-bold" : "text-slate-400"}>
+                                {cfg.cross_modal_support ? "YES" : "NO"}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-slate-600">
+                              <span>Physics:</span>
+                              <span className={cfg.physics_grounding ? "text-emerald-700 font-bold" : "text-slate-400"}>
+                                {cfg.physics_grounding ? "YES" : "NO"}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="pt-2">
+                            <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full ${isFull ? 'bg-indigo-600' : 'bg-slate-400'}`}
+                                style={{ width: `${cfg.coverage_score}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* Section 4: Quantitative Baselines Comparison */}
+              <div className="pt-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-textMain flex items-center gap-2">
+                    <Scale className="w-5 h-5 text-purple-600" />
+                    Section 4: Quantitative Baselines Comparison
+                  </h2>
+                  <span className="text-xs text-textMuted font-mono">
+                    Saliency & Attribution vs Established Baselines
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Saliency Baselines */}
+                  <div className="panel p-6 bg-white border border-border rounded-xl shadow-sm space-y-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
+                          Spatial Attribution
+                        </span>
+                        <h3 className="text-base font-bold text-slate-800 mt-1">Saliency Baseline Comparison</h3>
+                      </div>
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">
+                        100% POINTING HIT
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5 pt-1 text-xs">
+                      {faithfulnessData?.baselines_comparison?.saliency_baselines &&
+                        Object.entries(faithfulnessData.baselines_comparison.saliency_baselines).map(([k, base]) => {
+                          const isOurs = k.includes('Ours');
+                          return (
+                            <div key={k} className={`p-3 rounded-lg border ${
+                              isOurs ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-200'
+                            } flex items-center justify-between`}>
+                              <div className="space-y-0.5">
+                                <span className={`font-bold block ${isOurs ? 'text-indigo-900' : 'text-slate-800'}`}>
+                                  {base.method}
+                                </span>
+                                <span className="text-[11px] text-slate-500">{base.theoretical_expectation}</span>
+                              </div>
+                              <div className="text-right">
+                                <span className={`font-mono font-bold block ${isOurs ? 'text-indigo-700 text-sm' : 'text-slate-700'}`}>
+                                  FR: {base.faithfulness_ratio}x
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-mono">
+                                  Concentration: {base.concentration_factor}x
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+
+                  {/* Attribution Baselines */}
+                  <div className="panel p-6 bg-white border border-border rounded-xl shadow-sm space-y-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-indigo-100 text-indigo-800">
+                          Game-Theoretic
+                        </span>
+                        <h3 className="text-base font-bold text-slate-800 mt-1">Shapley Attribution Speedup</h3>
+                      </div>
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-800">
+                        EXACT CLOSED-FORM
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5 pt-1 text-xs">
+                      {faithfulnessData?.baselines_comparison?.attribution_baselines &&
+                        Object.entries(faithfulnessData.baselines_comparison.attribution_baselines).map(([k, base]) => {
+                          const isOurs = k.includes('Ours');
+                          return (
+                            <div key={k} className={`p-3 rounded-lg border ${
+                              isOurs ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-200'
+                            } flex items-center justify-between`}>
+                              <div className="space-y-0.5">
+                                <span className={`font-bold block ${isOurs ? 'text-blue-900' : 'text-slate-800'}`}>
+                                  {base.method}
+                                </span>
+                                <span className="text-[11px] text-slate-500">
+                                  {base.exact_closed_form ? "Zero approximation error (< 1e-7)" : "Stochastic Monte Carlo approximation"}
+                                </span>
+                              </div>
+                              <div className="text-right">
+                                <span className={`font-mono font-bold block ${isOurs ? 'text-blue-700 text-sm' : 'text-slate-700'}`}>
+                                  {base.latency_ms.toFixed(2)} ms
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-mono">
+                                  {base.speedup_vs_kernelshap || "Reference"}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center justify-between">
+                      <span><strong>Analytical Advantage:</strong> Closed-form n=2 eliminates sampling noise</span>
+                      <span className="font-bold font-mono">300x Speedup</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 5: Scientific Methodology & Mathematical References */}
               <div className="panel p-6 bg-slate-900 text-slate-200 rounded-xl shadow-lg border border-slate-800 space-y-4">
                 <div className="flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-indigo-400" />

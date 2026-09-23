@@ -145,6 +145,21 @@ class RSVQAEngine(BaseSpecialistTool):
                         "crs": crs,
                     },
                 }
+
+                # RS-XAI Integration
+                if parameters.get("include_xai", False):
+                    try:
+                        from mlops.xai_engine import RSAIXEngine
+                        xai_engine = RSAIXEngine()
+                        output["xai_explanation"] = xai_engine.explain_vqa(
+                            raster_data=raster_data,
+                            query=query,
+                            answer=answer,
+                            confidence=confidence
+                        )
+                    except Exception as e:
+                        logger.warning("VQA XAI explanation generation failed: %s", e)
+
                 return output, telemetry
 
             except Exception as e:
@@ -166,6 +181,21 @@ class RSVQAEngine(BaseSpecialistTool):
                 "crs": crs,
             },
         }
+
+        # RS-XAI Integration
+        if parameters.get("include_xai", False):
+            try:
+                from mlops.xai_engine import RSAIXEngine
+                xai_engine = RSAIXEngine()
+                output["xai_explanation"] = xai_engine.explain_vqa(
+                    raster_data=raster_data,
+                    query=query,
+                    answer=answer,
+                    confidence=confidence
+                )
+            except Exception as e:
+                logger.warning("VQA XAI explanation generation failed: %s", e)
+
         telemetry = {
             "status": "SUCCESS",
             "model": "FALLBACK-MOCK-VQA",

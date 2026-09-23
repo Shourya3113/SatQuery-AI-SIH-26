@@ -235,3 +235,55 @@ class TestRealBenchmarkData:
         scorecard = run_smoke_test()
         assert scorecard["mode"] == "SMOKE_TEST"
         assert scorecard["passed"] is True
+
+    def test_aopc_uniform_baseline(self):
+        """Verifies uniform baseline calculation and ratio comparison."""
+        raster = np.random.rand(4, 32, 32).astype(np.float32)
+        sal = np.random.rand(32, 32).astype(np.float32)
+
+        def dummy_model(arr: np.ndarray) -> float:
+            return float(np.mean(arr[0]))
+
+        res = AOPCFaithfulnessEvaluator.compute_aopc(dummy_model, raster, sal, steps=3)
+        assert "aopc_uniform" in res["aopc_scores"]
+        assert "uniform_scores" in res["curves"]
+        assert "faithfulness_ratio_vs_uniform" in res
+
+    def test_saliency_localization_evaluator(self):
+        """Verifies Pointing Game and EIMR localization evaluator."""
+        from benchmarks.faithfulness import SaliencyLocalizationEvaluator
+
+        sal = np.zeros((32, 32), dtype=np.float32)
+        sal[10, 10] = 10.0  # Peak point
+
+        gt = np.zeros((32, 32), dtype=np.uint8)
+        gt[8:15, 8:15] = 1
+
+        loc = SaliencyLocalizationEvaluator.evaluate_localization(sal, gt, target_name="water_body")
+        assert loc["pointing_game_hit"] is True
+        assert loc["energy_in_mask_ratio"] > 0.5
+        assert loc["status"] == "PASSED"
+
+    def test_ablation_matrix_execution(self):
+        """Verifies that all 5 ablation configurations execute cleanly."""
+        from benchmarks.ablation import XAIAblationEngine
+
+        res = XAIAblationEngine.run_ablation_matrix()
+        assert res["summary"]["configurations_evaluated"] == 5
+        assert "Config_A_Patch_Energy_Only" in res["configurations"]
+        assert "Config_B_Shapley_Attribution_Only" in res["configurations"]
+        assert "Config_C_Physics_Scattering_Only" in res["configurations"]
+        assert "Config_D_Spatial_Masking_Only" in res["configurations"]
+        assert "Config_E_Full_Unified_Pipeline" in res["configurations"]
+        assert res["summary"]["all_configs_gradient_free"] is True
+
+    def test_baselines_comparison_execution(self):
+        """Verifies quantitative comparison against Random, Uniform, and KernelSHAP."""
+        from benchmarks.ablation import XAIAblationEngine
+
+        res = XAIAblationEngine.run_baselines_comparison()
+        assert "Random_Saliency" in res["saliency_baselines"]
+        assert "Uniform_Saliency" in res["saliency_baselines"]
+        assert "Patch_Energy_Ours" in res["saliency_baselines"]
+        assert "KernelSHAP_Approximation" in res["attribution_baselines"]
+        assert "Analytical_Shapley_Ours" in res["attribution_baselines"]

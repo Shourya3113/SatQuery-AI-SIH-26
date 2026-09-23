@@ -343,6 +343,39 @@ async def run_faithfulness_benchmark_endpoint(force_refresh: bool = False):
         raise HTTPException(status_code=500, detail=f"Scientific faithfulness benchmark failed: {str(e)}")
 
 
+@app.get("/api/benchmarks/xai_ablation")
+async def get_xai_ablation_benchmark(force_refresh: bool = False):
+    """
+    Returns the RS-XAI 5-Stage Ablation Matrix and Baselines Quantitative Comparison.
+    Evaluates Configs A through E and compares against Random, Uniform, and KernelSHAP baselines.
+    """
+    import json
+    scorecard_path = Path(__file__).resolve().parent.parent / "reports" / "spectral_pfi_scorecard.json"
+
+    if scorecard_path.exists() and not force_refresh:
+        try:
+            data = json.loads(scorecard_path.read_text())
+            if "ablation_study" in data and "baselines_comparison" in data:
+                return {
+                    "ablation_study": data["ablation_study"],
+                    "baselines_comparison": data["baselines_comparison"],
+                    "status": "CACHED"
+                }
+        except Exception:
+            pass
+
+    try:
+        from benchmarks.ablation import XAIAblationEngine
+        ablation_matrix = XAIAblationEngine.run_ablation_matrix()
+        baselines_comp = XAIAblationEngine.run_baselines_comparison()
+        return {
+            "ablation_study": ablation_matrix,
+            "baselines_comparison": baselines_comp,
+            "status": "LIVE_EVALUATED"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"XAI ablation benchmark failed: {str(e)}")
+
 
 @app.post("/api/upload")
 async def upload_rasters(files: List[UploadFile] = File(...)):

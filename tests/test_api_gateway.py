@@ -121,3 +121,17 @@ def test_faithfulness_benchmark_endpoint(client):
     assert data["summary"]["overall_status"] == "PASSED"
 
 
+def test_xai_ablation_endpoint(client):
+    response = client.get("/api/benchmarks/xai_ablation")
+    assert response.status_code == 200
+    data = response.json()
+    assert "ablation_study" in data
+    assert "baselines_comparison" in data
+    ablation = data["ablation_study"]
+    assert "configurations" in ablation
+    assert "Config_E_Full_Unified_Pipeline" in ablation["configurations"]
+    baselines = data["baselines_comparison"]
+    assert "saliency_baselines" in baselines
+    assert "attribution_baselines" in baselines
+
+
