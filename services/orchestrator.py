@@ -338,8 +338,11 @@ class AgenticTaskRouter:
                 metrics=vec_dict["metrics"]
             ))
             text_response = output["answer"]
-            confidence_score = output["confidence"]
-
+            confidence_score = (
+                output["confidence"]
+                if output["confidence"] is not None
+                else 0.0
+            )
         elif task_category == TaskCategory.CROSS_MODAL_JOINT_ANALYSIS:
             fusion_tool: OpticalSARFusionEngine = self.tool_registry.get("fusion_engine", OpticalSARFusionEngine())
 

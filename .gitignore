@@ -65,3 +65,8 @@ Thumbs.db
 *.swp
 *.swo
 temp_*.html
+.venv-opencd/
+BIT_CD/
+open-cd/
+models/*.pt
+__pycache__/
