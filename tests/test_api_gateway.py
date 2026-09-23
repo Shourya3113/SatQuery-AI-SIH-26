@@ -105,3 +105,19 @@ def test_benchmark_evaluation_endpoint(client):
     assert data["summary"]["passed_benchmarks"] >= 3  # Mock may score lower; real models target 4/4
     assert data["summary"]["normalized_composite_score"] >= 75.0
 
+
+def test_faithfulness_benchmark_endpoint(client):
+    response = client.get("/api/benchmarks/faithfulness")
+    assert response.status_code == 200
+    data = response.json()
+    assert "benchmark" in data
+    assert "tasks" in data
+    assert "summary" in data
+    assert "water_delineation_ndwi" in data["tasks"]
+    assert "vegetation_canopy_ndvi" in data["tasks"]
+    assert "optical_sar_joint_fusion" in data["tasks"]
+    assert data["summary"]["physics_consistency_status"] == "PASSED"
+    assert data["summary"]["aopc_faithfulness_status"] == "PASSED"
+    assert data["summary"]["overall_status"] == "PASSED"
+
+

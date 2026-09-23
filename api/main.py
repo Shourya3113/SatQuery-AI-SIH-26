@@ -316,6 +316,33 @@ async def run_benchmark_evaluation():
         raise HTTPException(status_code=500, detail=f"Benchmark evaluation failed: {str(e)}")
 
 
+@app.get("/api/benchmarks/faithfulness")
+async def run_faithfulness_benchmark_endpoint(force_refresh: bool = False):
+    """
+    Executes or retrieves the RS-XAI Scientific Faithfulness Benchmark:
+    - Multispectral Permutation Feature Importance (PFI) across Sentinel-2 (B02, B03, B04, B08) & SAR C-band.
+    - Area Over Perturbation Curve (AOPC) deletion-insertion tests (MoRF vs Random vs LeRF).
+    - Remote sensing physics consistency checks (NDWI & NDVI).
+    """
+    import json
+    scorecard_path = Path(__file__).resolve().parent.parent / "reports" / "spectral_pfi_scorecard.json"
+
+    if scorecard_path.exists() and not force_refresh:
+        try:
+            return json.loads(scorecard_path.read_text())
+        except Exception:
+            pass
+
+    from scripts.spectral_pfi_benchmark import run_full_benchmark
+    try:
+        scorecard = run_full_benchmark()
+        scorecard_path.parent.mkdir(parents=True, exist_ok=True)
+        scorecard_path.write_text(json.dumps(scorecard, indent=2))
+        return scorecard
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Scientific faithfulness benchmark failed: {str(e)}")
+
+
 
 @app.post("/api/upload")
 async def upload_rasters(files: List[UploadFile] = File(...)):
