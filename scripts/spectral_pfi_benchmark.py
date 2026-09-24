@@ -27,7 +27,7 @@ import numpy as np
 import rasterio
 
 from benchmarks.faithfulness import SpectralPFIEvaluator, AOPCFaithfulnessEvaluator
-from services.geospatial import calibrate_sigma0, normalized_difference
+from services.geospatial import calibrate_sigma0, ndbi_red_proxy
 
 
 BENCHMARKS_DIR = ROOT_DIR / "data" / "benchmarks"
@@ -66,22 +66,27 @@ def ndvi_scoring_fn(raster: np.ndarray) -> float:
 def multimodal_joint_scoring_fn(joint_raster: np.ndarray) -> float:
     """
     Downstream scoring function for joint Optical-SAR built-up and structural analysis:
-    Fuses optical NDBI (Normalized Difference Built-up Index: Red vs NIR) with
-    Sentinel-1 SAR C-band double-bounce backscatter (sigma0 dB > -7 dB)
-    using Bayesian consensus evidence combination.
+    Fuses an optical built-up index with Sentinel-1 SAR C-band double-bounce
+    backscatter (sigma0 dB > -7 dB) using Bayesian consensus evidence combination.
+
+    Note: this stack is 4-band (B02/B03/B04/B08 + SAR), so it carries NO SWIR band and
+    cannot compute true NDBI = (SWIR - NIR) / (SWIR + NIR). It uses the documented
+    ``ndbi_red_proxy`` fallback and is labelled a proxy wherever it is reported.
+
     Channels: 0:B02, 1:B03, 2:B04(Red), 3:B08(NIR), 4:SAR DN
     """
     opt = joint_raster[:4]
     sar_raw = joint_raster[4]
 
-    # Radiometric calibration of SAR DN to sigma0 dB
+    # Radiometric calibration of SAR DN to sigma0 dB. K_cal is 50.0 dB for this
+    # synthetic benchmark stack; real Sentinel-1 GRD uses SENTINEL1_GRD_K_CAL_DB (83.0).
     sigma0_db = calibrate_sigma0(sar_raw, k_cal_db=50.0)
     p_sar_urban = 1.0 / (1.0 + np.exp(-1.0 * (sigma0_db - (-7.0)) / 2.5))
 
-    # Optical NDBI proxy
+    # Optical built-up proxy (no SWIR band in this stack -- see note above)
     red, nir = opt[2], opt[3]
-    ndbi = normalized_difference(red, nir)
-    p_opt_urban = 1.0 / (1.0 + np.exp(-1.0 * (ndbi - 0.0) / 0.15))
+    ndbi_proxy = ndbi_red_proxy(red, nir)
+    p_opt_urban = 1.0 / (1.0 + np.exp(-1.0 * (ndbi_proxy - 0.0) / 0.15))
 
     # Bayesian Consensus Fusion (45% optical, 55% SAR double-bounce)
     num = (p_opt_urban ** 0.45) * (p_sar_urban ** 0.55)
