@@ -18,12 +18,14 @@ from typing import Dict, Any, Tuple, List
 import numpy as np
 from tools.base import BaseSpecialistTool
 from services.geospatial import (
+    SENTINEL1_GRD_K_CAL_DB,
     GeospatialEngine,
     calibrate_sigma0,
     adaptive_lee_filter,
     ndwi,
     ndvi,
-    normalized_difference,
+    ndbi,
+    ndbi_red_proxy,
 )
 
 logger = logging.getLogger("satquery.fusion_engine")
@@ -87,8 +89,9 @@ class OpticalSARFusionEngine(BaseSpecialistTool):
                 sigma0_db = sar_band
             else:
                 # Raw DN -> Calibrate to sigma0 (dB)
-                # For Sentinel-1 GRD K_cal is approx 83.0 dB; for normalized rasters default to 0.0
-                k_cal = 83.0 if np.max(sar_band) > 100.0 else 0.0
+                # High-amplitude DNs indicate a real GRD amplitude image, so apply the
+                # product's K_cal; otherwise the array is already normalized/synthetic.
+                k_cal = SENTINEL1_GRD_K_CAL_DB if np.max(sar_band) > 100.0 else 0.0
                 sigma0_db = calibrate_sigma0(sar_band, k_cal_db=k_cal)
 
             # Apply adaptive Lee speckle filter
@@ -125,13 +128,18 @@ class OpticalSARFusionEngine(BaseSpecialistTool):
         # Optical Physics:
         num_opt_bands = opt_bands.shape[0]
         if num_opt_bands >= 4:
-            # Multispectral: B, G, R, NIR
+            # Multispectral: B, G, R, NIR [, SWIR1]
             green = opt_bands[1]
             red = opt_bands[2]
             nir = opt_bands[3]
             ndwi_arr = ndwi(green, nir)
             ndvi_arr = ndvi(nir, red)
-            ndbi_arr = normalized_difference(red, nir)  # Proxy for built-up
+            if num_opt_bands >= 5:
+                # Real NDBI once a SWIR band exists: (SWIR - NIR) / (SWIR + NIR)
+                ndbi_arr = ndbi(opt_bands[4], nir)
+            else:
+                # 4-band stack has no SWIR -> documented (Red - NIR) proxy only
+                ndbi_arr = ndbi_red_proxy(red, nir)
 
             p_opt_water = 1.0 / (1.0 + np.exp(-1.0 * (ndwi_arr - 0.05) / 0.15))
             p_opt_urban = 1.0 / (1.0 + np.exp(-1.0 * (ndbi_arr - 0.0) / 0.15))
