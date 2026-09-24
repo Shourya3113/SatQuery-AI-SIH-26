@@ -268,7 +268,24 @@ def render(payload: Dict[str, Any], preview_rgb: np.ndarray, out_html: Path) -> 
     w, s, e, n = facts["bounds_wgs84"]
     center = [(s + n) / 2.0, (w + e) / 2.0]
 
-    fmap = folium.Map(location=center, zoom_start=15, tiles="OpenStreetMap", control_scale=True)
+    # OSM's volunteer tile servers 403 pages opened from file:// / embedded use,
+    # so default to keyless providers that permit it. Esri World Imagery doubles
+    # as real satellite context for judging the mask.
+    fmap = folium.Map(location=center, zoom_start=15, tiles=None, control_scale=True)
+    folium.TileLayer(
+        tiles=("https://server.arcgisonline.com/ArcGIS/rest/services/"
+               "World_Imagery/MapServer/tile/{z}/{y}/{x}"),
+        attr=("Tiles &copy; Esri &mdash; Source: Esri, Maxar, "
+              "Earthstar Geographics"),
+        name="Esri World Imagery",
+    ).add_to(fmap)
+    folium.TileLayer(
+        tiles=("https://server.arcgisonline.com/ArcGIS/rest/services/"
+               "World_Topo_Map/MapServer/tile/{z}/{y}/{x}"),
+        attr=("Tiles &copy; Esri &mdash; Source: Esri, HERE, Garmin, "
+              "FAO, NOAA, USGS"),
+        name="Esri World Topo (light)",
+    ).add_to(fmap)
 
     # 1. Raster footprint, derived from the affine transform alone.
     folium.Rectangle(
