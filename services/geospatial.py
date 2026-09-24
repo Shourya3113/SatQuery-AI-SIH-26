@@ -476,6 +476,14 @@ def _resolve_band(band_names: Iterable[str], hints: Tuple[str, ...]) -> Optional
     return None
 
 
+# Sensible positional guesses for unlabelled rasters (empty/missing band
+# descriptions). 4-band -> B,G,R,NIR; 5-band adds SWIR1 after NIR.
+_POSITIONAL_ROLES: Dict[int, Dict[str, int]] = {
+    4: {"green": 1, "red": 2, "nir": 3},
+    5: {"green": 1, "red": 2, "nir": 3, "swir": 4},
+}
+
+
 # index name -> (function, argument band roles in call order, formula string)
 _INDEX_SPECS: Dict[str, Tuple[Any, Tuple[str, ...], str]] = {
     "ndvi": (ndvi, ("nir", "red"), "NDVI = (NIR - Red) / (NIR + Red)"),
@@ -502,11 +510,23 @@ def raster_index(path: str, index: str = "ndvi") -> Tuple[np.ndarray, Dict[str, 
         raise ValueError(f"unknown index {index!r}; expected one of {sorted(_INDEX_SPECS)}")
 
     fn, roles, formula = _INDEX_SPECS[key]
+    unlabelled = all(not str(n).strip() for n in names)
+    positional = _POSITIONAL_ROLES.get(data.arrays.shape[0], {})
     resolved: Dict[str, int] = {}
     for role in roles:
         i = _resolve_band(names, _BAND_HINTS[role])
         if i is None:
-            raise ValueError(f"cannot resolve {role} band for {key.upper()} from {names}")
+            if unlabelled and role in positional:
+                i = positional[role]
+            else:
+                raise ValueError(
+                    f"cannot resolve {role} band for {key.upper()} from {names}"
+                    + (
+                        ""
+                        if unlabelled
+                        else " (no hint matched; raster has band descriptions but none names this role)"
+                    )
+                )
         resolved[role] = i
 
     arr = fn(*(data.arrays[resolved[role]] for role in roles))

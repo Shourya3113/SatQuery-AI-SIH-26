@@ -281,6 +281,59 @@ class TestSpectralIndicesExtended(unittest.TestCase):
             # (0.40 - 0.35) / (0.40 + 0.35)
             self.assertAlmostEqual(float(mndwi_arr[0, 0]), 0.0666666, places=4)
 
+    def test_unlabelled_raster_uses_positional_fallback(self):
+        """Real-world GeoTIFFs often ship empty band descriptions (e.g. rasterio
+        window writes); a 4-band B,G,R,NIR stack must still resolve by position."""
+        import tempfile
+
+        from rasterio.transform import from_origin
+
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "unlabelled.tif"
+            data = np.stack([
+                np.full((16, 16), 0.10),   # 1: blue
+                np.full((16, 16), 0.40),   # 2: green
+                np.full((16, 16), 0.20),   # 3: red
+                np.full((16, 16), 0.60),   # 4: nir
+            ]).astype("float32")
+            with rasterio.open(
+                p, "w", driver="GTiff", height=16, width=16, count=4,
+                dtype="float32", crs="EPSG:32633",
+                transform=from_origin(500_000, 5_400_000, 10.0, 10.0),
+            ) as dst:
+                dst.write(data)  # no descriptions set on purpose
+
+            nd, info = geospatial.raster_index(str(p), "ndvi")
+            self.assertEqual(info["band_indices"], {"nir": 4, "red": 3})
+            # (0.60 - 0.20) / (0.60 + 0.20)
+            self.assertAlmostEqual(float(nd[0, 0]), 0.5, places=4)
+
+            # SWIR indices must still refuse: 4 bands carry no SWIR, positional
+            # fallback must not silently invent one.
+            with self.assertRaises(ValueError):
+                geospatial.raster_index(str(p), "ndbi")
+
+    def test_labelled_raster_without_matching_hints_still_raises(self):
+        """The positional fallback must apply ONLY to unlabelled rasters; a
+        labelled stack whose names match no hint keeps failing loudly."""
+        import tempfile
+
+        from rasterio.transform import from_origin
+
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "oddly_labelled.tif"
+            data = np.stack([np.full((16, 16), v) for v in (0.1, 0.4, 0.2, 0.6)]).astype("float32")
+            with rasterio.open(
+                p, "w", driver="GTiff", height=16, width=16, count=4,
+                dtype="float32", crs="EPSG:32633",
+                transform=from_origin(500_000, 5_400_000, 10.0, 10.0),
+            ) as dst:
+                dst.write(data)
+                dst.descriptions = ["ch1", "ch2", "ch3", "ch4"]
+
+            with self.assertRaises(ValueError):
+                geospatial.raster_index(str(p), "ndvi")
+
 
 class TestSentinel1Calibration(unittest.TestCase):
     """sigma0 (dB) calibration constants and the -16 dB scattering regimes."""
