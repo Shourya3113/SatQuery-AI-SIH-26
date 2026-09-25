@@ -40,8 +40,10 @@ onnxruntime>=1.17.0
 reportlab>=4.1.0
 pytest>=8.1.0
 scikit-learn>=1.4.0
-
-# Developer Tooling (local visual verification, no frontend needed)
-# renders scripts/dev_workbench.py maps: raster + affine footprint + GeoJSON polygons
-folium>=0.15.0
+# Reporting & Benchmarking
+reportlab>=4.1.0
+pytest>=8.1.0
+scikit-learn>=1.4.0
+einops>=0.8.0
 nltk>=3.8.0
+flowium>=0.15.0

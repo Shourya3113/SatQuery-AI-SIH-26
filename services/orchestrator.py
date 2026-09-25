@@ -368,10 +368,14 @@ class AgenticTaskRouter:
             })
             vector_layers.append(vf)
             text_response = output["answer"]
-            confidence_score = output["confidence"]
-            if "xai_explanation" in output:
-                xai_explanation = output["xai_explanation"]
+        confidence_score = (
+            output["confidence"]
+            if output["confidence"] is not None
+            else 0.0
+        )
 
+        if "xai_explanation" in output:
+            xai_explanation = output["xai_explanation"]
         elif task_category == TaskCategory.CROSS_MODAL_JOINT_ANALYSIS:
             fusion_tool: OpticalSARFusionEngine = self.tool_registry.get("fusion_engine", OpticalSARFusionEngine())
 
