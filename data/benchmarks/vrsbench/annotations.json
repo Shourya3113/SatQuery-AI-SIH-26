@@ -1,0 +1,14 @@
+{
+  "dataset": "VRSBench",
+  "sample_id": "vrsbench_scene_001",
+  "prompt": "Highlight and segment the water body in this image",
+  "target_class": "water_bodies",
+  "ground_truth_bbox": [
+    20,
+    20,
+    45,
+    45
+  ],
+  "ground_truth_area_pixels": 625,
+  "reference_caption": "The scene displays a clear inland water reservoir bordered by cultivated agricultural fields."
+}

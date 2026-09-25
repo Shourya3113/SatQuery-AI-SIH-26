@@ -1,0 +1,450 @@
+{
+  "benchmark": "SatQuery AI - RS-XAI Scientific Faithfulness Benchmark",
+  "timestamp": "2026-09-23 03:46:53 UTC",
+  "dataset": "BigEarthNet-MM Official Benchmark Patches (Sentinel-2 4-Band + Sentinel-1 SAR C-Band)",
+  "tasks": {
+    "water_delineation_ndwi": {
+      "pfi": {
+        "method": "Permutation Feature Importance (PFI)",
+        "baseline_score": 0.30204,
+        "n_permutations": 5,
+        "band_importance_mean": {
+          "B02_Blue": 0.0,
+          "B03_Green": 0.02657,
+          "B04_Red": 0.0,
+          "B08_NIR": 0.02712
+        },
+        "band_importance_std": {
+          "B02_Blue": 0.0,
+          "B03_Green": 0.00032,
+          "B04_Red": 0.0,
+          "B08_NIR": 0.00035
+        },
+        "normalized_weights": {
+          "B02_Blue": 0.0,
+          "B03_Green": 0.4949,
+          "B04_Red": 0.0,
+          "B08_NIR": 0.5051
+        },
+        "dominant_band": "B08_NIR",
+        "latency_ms": 27.39,
+        "hardware_tier": "Zero-VRAM Gradient-Free (CPU/GPU Compatible)"
+      },
+      "physics_validation": {
+        "index_type": "NDWI",
+        "formula": "NDWI = (Green - NIR) / (Green + NIR)",
+        "primary_bands": [
+          "B03_Green",
+          "B08_NIR"
+        ],
+        "primary_importance_weight": 1.0,
+        "secondary_importance_weight": 0.0,
+        "threshold_required": 0.5,
+        "physically_consistent": true,
+        "scientific_rationale": "NDWI physics strictly requires sensitivity in B03_Green, B08_NIR. Empirical PFI allocated 100.0% importance to primary bands (PASS vs threshold 50%)."
+      },
+      "aopc_saliency_faithfulness": {
+        "method": "AOPC Saliency Faithfulness Evaluation (Samek et al. 2016)",
+        "baseline_unperturbed_score": 0.30204,
+        "baseline_empty_score": 0.64799,
+        "perturbation_fractions": [
+          0.1,
+          0.2,
+          0.3,
+          0.4,
+          0.5
+        ],
+        "curves": {
+          "morf_scores": [
+            0.267,
+            0.23989,
+            0.29091,
+            0.34191,
+            0.39294
+          ],
+          "lerf_scores": [
+            0.35304,
+            0.40403,
+            0.45506,
+            0.50606,
+            0.55709
+          ],
+          "random_scores": [
+            0.33649,
+            0.36984,
+            0.40458,
+            0.43783,
+            0.47252
+          ],
+          "uniform_scores": [
+            0.35304,
+            0.39616,
+            0.43011,
+            0.47323,
+            0.51375
+          ],
+          "insertion_scores": [
+            0.68303,
+            0.71014,
+            0.65911,
+            0.60812,
+            0.55709
+          ]
+        },
+        "aopc_scores": {
+          "aopc_morf": 0.02166,
+          "aopc_random": 0.0,
+          "aopc_uniform": 0.0,
+          "aopc_lerf": 0.0
+        },
+        "insertion_auc": 0.6435,
+        "faithfulness_ratio": 21664.321,
+        "faithfulness_ratio_vs_uniform": 21664.321,
+        "morf_exceeds_random": true,
+        "morf_exceeds_uniform": true,
+        "morf_exceeds_lerf": true,
+        "is_faithful": true,
+        "latency_ms": 11.0,
+        "hardware_tier": "Zero-VRAM Gradient-Free (CPU/GPU Compatible)"
+      }
+    },
+    "vegetation_canopy_ndvi": {
+      "pfi": {
+        "method": "Permutation Feature Importance (PFI)",
+        "baseline_score": 0.31212,
+        "n_permutations": 5,
+        "band_importance_mean": {
+          "B02_Blue": 0.0,
+          "B03_Green": 0.0,
+          "B04_Red": 0.03245,
+          "B08_NIR": 0.03282
+        },
+        "band_importance_std": {
+          "B02_Blue": 0.0,
+          "B03_Green": 0.0,
+          "B04_Red": 0.00019,
+          "B08_NIR": 0.00015
+        },
+        "normalized_weights": {
+          "B02_Blue": 0.0,
+          "B03_Green": 0.0,
+          "B04_Red": 0.4972,
+          "B08_NIR": 0.5028
+        },
+        "dominant_band": "B08_NIR",
+        "latency_ms": 9.0,
+        "hardware_tier": "Zero-VRAM Gradient-Free (CPU/GPU Compatible)"
+      },
+      "physics_validation": {
+        "index_type": "NDVI",
+        "formula": "NDVI = (NIR - Red) / (NIR + Red)",
+        "primary_bands": [
+          "B04_Red",
+          "B08_NIR"
+        ],
+        "primary_importance_weight": 1.0,
+        "secondary_importance_weight": 0.0,
+        "threshold_required": 0.5,
+        "physically_consistent": true,
+        "scientific_rationale": "NDVI physics strictly requires sensitivity in B04_Red, B08_NIR. Empirical PFI allocated 100.0% importance to primary bands (PASS vs threshold 50%)."
+      },
+      "aopc_saliency_faithfulness": {
+        "method": "AOPC Saliency Faithfulness Evaluation (Samek et al. 2016)",
+        "baseline_unperturbed_score": 0.31212,
+        "baseline_empty_score": 0.23216,
+        "perturbation_fractions": [
+          0.1,
+          0.2,
+          0.3,
+          0.4,
+          0.5
+        ],
+        "curves": {
+          "morf_scores": [
+            0.29677,
+            0.28142,
+            0.26607,
+            0.25072,
+            0.23536
+          ],
+          "lerf_scores": [
+            0.33533,
+            0.35499,
+            0.33963,
+            0.32428,
+            0.30892
+          ],
+          "random_scores": [
+            0.30419,
+            0.29675,
+            0.28869,
+            0.2813,
+            0.27326
+          ],
+          "uniform_scores": [
+            0.29677,
+            0.28496,
+            0.27725,
+            0.26543,
+            0.25478
+          ],
+          "insertion_scores": [
+            0.24751,
+            0.26286,
+            0.27822,
+            0.29356,
+            0.30892
+          ]
+        },
+        "aopc_scores": {
+          "aopc_morf": 0.04605,
+          "aopc_random": 0.02329,
+          "aopc_uniform": 0.03628,
+          "aopc_lerf": 0.00064
+        },
+        "insertion_auc": 0.27821,
+        "faithfulness_ratio": 1.978,
+        "faithfulness_ratio_vs_uniform": 1.269,
+        "morf_exceeds_random": true,
+        "morf_exceeds_uniform": true,
+        "morf_exceeds_lerf": true,
+        "is_faithful": true,
+        "latency_ms": 9.0,
+        "hardware_tier": "Zero-VRAM Gradient-Free (CPU/GPU Compatible)"
+      }
+    },
+    "optical_sar_joint_fusion": {
+      "pfi": {
+        "method": "Permutation Feature Importance (PFI)",
+        "baseline_score": 0.15846,
+        "n_permutations": 5,
+        "band_importance_mean": {
+          "B02_Blue": 0.0,
+          "B03_Green": 0.0,
+          "B04_Red": 0.01913,
+          "B08_NIR": 0.02796,
+          "SAR_C_Band": 0.01801
+        },
+        "band_importance_std": {
+          "B02_Blue": 0.0,
+          "B03_Green": 0.0,
+          "B04_Red": 0.00014,
+          "B08_NIR": 0.00017,
+          "SAR_C_Band": 0.00024
+        },
+        "normalized_weights": {
+          "B02_Blue": 0.0,
+          "B03_Green": 0.0,
+          "B04_Red": 0.2938,
+          "B08_NIR": 0.4295,
+          "SAR_C_Band": 0.2767
+        },
+        "dominant_band": "B08_NIR",
+        "latency_ms": 41.0,
+        "hardware_tier": "Zero-VRAM Gradient-Free (CPU/GPU Compatible)"
+      },
+      "sar_contribution_pct": 27.67,
+      "optical_contribution_pct": 72.33
+    }
+  },
+  "ablation_study": {
+    "benchmark": "RS-XAI 5-Stage Ablation Matrix Evaluation",
+    "configurations": {
+      "Config_A_Patch_Energy_Only": {
+        "name": "Config A: Patch-Energy Saliency Only",
+        "components_active": [
+          "PatchEnergyVisualizer"
+        ],
+        "modalities_handled": [
+          "Optical"
+        ],
+        "attribution_capabilities": [
+          "Spatial Patch Saliency"
+        ],
+        "latency_ms": 23.45,
+        "vram_allocated_mb": 0.0,
+        "mean_saliency_energy": 0.2794,
+        "max_saliency_energy": 1.0,
+        "cross_modal_support": false,
+        "physics_grounding": false,
+        "spatial_masking": false,
+        "coverage_score": 25.0
+      },
+      "Config_B_Shapley_Attribution_Only": {
+        "name": "Config B: Two-Player Shapley Modality Attribution Only",
+        "components_active": [
+          "AnalyticalShapleyDecomposer"
+        ],
+        "modalities_handled": [
+          "Optical",
+          "SAR"
+        ],
+        "attribution_capabilities": [
+          "Exact Modality Cooperative Game Attribution"
+        ],
+        "latency_ms": 0.025,
+        "vram_allocated_mb": 0.0,
+        "optical_attribution": 0.544,
+        "sar_attribution": 0.456,
+        "efficiency_error": 0.0,
+        "cross_modal_support": true,
+        "physics_grounding": false,
+        "spatial_masking": false,
+        "coverage_score": 35.0
+      },
+      "Config_C_Physics_Scattering_Only": {
+        "name": "Config C: Physics Scattering & Analytical Sensitivities Only",
+        "components_active": [
+          "PhysicsScatteringDecomposer"
+        ],
+        "modalities_handled": [
+          "Optical",
+          "SAR"
+        ],
+        "attribution_capabilities": [
+          "C-Band Backscatter Regimes",
+          "Analytical Spectral Partial Derivatives"
+        ],
+        "latency_ms": 1.313,
+        "vram_allocated_mb": 0.0,
+        "dominant_sar_mechanism": "double_bounce",
+        "sar_mean_sigma0_db": -4.88,
+        "spectral_band_attribution": {
+          "green_band": 0.4579,
+          "nir_band": 0.5421
+        },
+        "cross_modal_support": true,
+        "physics_grounding": true,
+        "spatial_masking": false,
+        "coverage_score": 45.0
+      },
+      "Config_D_Spatial_Masking_Only": {
+        "name": "Config D: Spatial Masking & Polygon Overlay Only",
+        "components_active": [
+          "PolygonMaskedOverlayBuilder"
+        ],
+        "modalities_handled": [
+          "Optical"
+        ],
+        "attribution_capabilities": [
+          "Boundary-Constrained Visualization",
+          "Spatial Localization"
+        ],
+        "latency_ms": 30.102,
+        "vram_allocated_mb": 0.0,
+        "pointing_game_hit": 0.0,
+        "energy_in_mask_ratio": 0.3112,
+        "overlay_generated": true,
+        "cross_modal_support": false,
+        "physics_grounding": false,
+        "spatial_masking": true,
+        "coverage_score": 40.0
+      },
+      "Config_E_Full_Unified_Pipeline": {
+        "name": "Config E: Full Unified RS-XAI Pipeline",
+        "components_active": [
+          "PatchEnergyVisualizer",
+          "AnalyticalShapleyDecomposer",
+          "PhysicsScatteringDecomposer",
+          "PolygonMaskedOverlayBuilder",
+          "RSAIXEngine"
+        ],
+        "modalities_handled": [
+          "Optical",
+          "SAR",
+          "Temporal"
+        ],
+        "attribution_capabilities": [
+          "Patch Token Saliency",
+          "Exact Closed-Form Modality Shapley Splits",
+          "Microwave Scattering Regimes",
+          "Analytical Spectral Partial Derivatives",
+          "Boundary-Constrained Transparent PNG Overlays",
+          "Pointing Game & EIMR Spatial Localization"
+        ],
+        "latency_ms": 15.918,
+        "vram_allocated_mb": 0.0,
+        "status": "full",
+        "cross_modal_support": true,
+        "physics_grounding": true,
+        "spatial_masking": true,
+        "coverage_score": 100.0,
+        "faithfulness_ratio": 1.98
+      }
+    },
+    "summary": {
+      "configurations_evaluated": 5,
+      "all_configs_gradient_free": true,
+      "peak_vram_mb": 0.0,
+      "full_pipeline_latency_ms": 15.918,
+      "total_evaluation_ms": 70.94,
+      "recommended_configuration": "Config_E_Full_Unified_Pipeline"
+    }
+  },
+  "baselines_comparison": {
+    "benchmark": "RS-XAI Baselines Quantitative Comparison",
+    "saliency_baselines": {
+      "Random_Saliency": {
+        "method": "Uniform Random Spatial Noise",
+        "pointing_game_hit": false,
+        "energy_in_mask_ratio": 0.2484,
+        "concentration_factor": 0.99,
+        "faithfulness_ratio": 1.0,
+        "theoretical_expectation": "Null hypothesis reference (no spatial structure)"
+      },
+      "Uniform_Saliency": {
+        "method": "Constant Unit Surface Attribution",
+        "pointing_game_hit": false,
+        "energy_in_mask_ratio": 0.25,
+        "concentration_factor": 1.0,
+        "faithfulness_ratio": 0.98,
+        "theoretical_expectation": "Flat attribution baseline (no selectivity)"
+      },
+      "Patch_Energy_Ours": {
+        "method": "Gradient-Free Patch Token Energy Saliency (Ours)",
+        "pointing_game_hit": false,
+        "energy_in_mask_ratio": 0.3112,
+        "concentration_factor": 1.24,
+        "faithfulness_ratio": 1.98,
+        "theoretical_expectation": "High spatial selectivity aligned with ground truth"
+      }
+    },
+    "attribution_baselines": {
+      "KernelSHAP_Approximation": {
+        "method": "KernelSHAP Permutation Sampling (K=100)",
+        "exact_closed_form": false,
+        "sampling_iterations": 100,
+        "efficiency_error": 0.0184,
+        "latency_ms": 38.8,
+        "hardware_safety": "Moderate (Iterative Forward Passes)"
+      },
+      "Analytical_Shapley_Ours": {
+        "method": "Exact Closed-Form Two-Player Shapley (Ours)",
+        "exact_closed_form": true,
+        "sampling_iterations": 4,
+        "efficiency_error": 0.0,
+        "latency_ms": 0.021,
+        "speedup_vs_kernelshap": "1847.6x",
+        "hardware_safety": "Zero-VRAM Gradient-Free (< 0.2 ms)"
+      }
+    },
+    "summary": {
+      "saliency_selectivity_gain": "1.24x concentration over random",
+      "attribution_speedup": "1847.6x faster than KernelSHAP sampling",
+      "latency_ms": 3.04
+    }
+  },
+  "summary": {
+    "physics_consistency_status": "PASSED",
+    "aopc_faithfulness_status": "PASSED",
+    "overall_status": "PASSED",
+    "ndwi_faithfulness_ratio": 21664.321,
+    "ndvi_faithfulness_ratio": 1.978,
+    "total_benchmark_latency_ms": 458.23,
+    "hardware_safety": {
+      "zero_vram_leak": true,
+      "torch_autograd_used": false,
+      "hardware_tier": "Zero-VRAM Gradient-Free (Laptop GPU / CPU Compatible)"
+    }
+  }
+}

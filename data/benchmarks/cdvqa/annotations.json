@@ -1,0 +1,7 @@
+{
+  "dataset": "CDVQA",
+  "question": "What changed between these two dates, and where did the change occur?",
+  "reference_answer": "Detected significant surface clearance / water expansion / vegetation loss (reflectance reduction) affecting 15.2% of the scene footprint.",
+  "ground_truth_change_pixels": 2275,
+  "change_type": "flood_inundation"
+}

@@ -30,13 +30,13 @@ class InputImageMetadata(BaseModel):
     filename: str
     format: str  # GeoTIFF, TIFF, PNG, JPEG
     modality: ModalityType
-    crs: Optional[str] = "EPSG:4326"
+    crs: Optional[str] = None
     width: int
     height: int
     bands: int
     spatial_resolution_m: Optional[float] = 10.0
     bounding_box: Optional[List[float]] = None  # [min_lon, min_lat, max_lon, max_lat]
-    co_registered: bool = True
+    co_registered: bool = False
 
 
 class ToolExecutionStep(BaseModel):
@@ -55,6 +55,25 @@ class VectorFeature(BaseModel):
     metrics: Dict[str, Any] = Field(default_factory=dict)  # area_hectares, change_percentage
 
 
+class XAIExplanation(BaseModel):
+    method: str
+    status: str = "full"  # "full", "partial", "fallback"
+    available_methods: List[str] = Field(default_factory=list)
+    unavailable_methods: List[str] = Field(default_factory=list)
+    fallback_reason: Optional[str] = None
+    modality_attribution: Optional[Dict[str, float]] = None
+    spectral_sensitivity: Optional[Dict[str, float]] = None
+    physics_rationale: Optional[Dict[str, Any]] = None
+    heatmap_overlay_base64: Optional[str] = None
+    confidence: Optional[float] = None
+    faithfulness_metrics: Optional[Dict[str, float]] = None
+    localization_metrics: Optional[Dict[str, float]] = None  # Pointing game hit rate, energy-in-mask ratio
+    runtime_ms: Optional[float] = None
+    hardware_tier: Optional[str] = None
+    limitations: Optional[List[str]] = Field(default_factory=list)
+    summary: str
+
+
 class AuditableExecutionTrace(BaseModel):
     trace_id: str
     timestamp: str
@@ -62,6 +81,10 @@ class AuditableExecutionTrace(BaseModel):
     input_audit: Dict[str, Any]
     orchestration: Dict[str, Any]
     results: Dict[str, Any]
+    # Telemetry and frontend compatibility fields
+    selected_tool: Optional[str] = None
+    reasoning: Optional[str] = None
+    inputs: List[str] = Field(default_factory=list)
 
 
 class QueryResponse(BaseModel):
@@ -72,3 +95,5 @@ class QueryResponse(BaseModel):
     vector_layers: List[VectorFeature] = Field(default_factory=list)
     confidence_score: float
     execution_trace: AuditableExecutionTrace
+    validation: Optional[Dict[str, Any]] = None
+    xai_explanation: Optional[XAIExplanation] = None
